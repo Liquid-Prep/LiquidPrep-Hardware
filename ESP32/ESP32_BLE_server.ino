@@ -42,14 +42,19 @@ void setup() {
 
 void loop() {
 
-  int max = 1750;  // enter your max value here
-  int min = 3420;  // enter your min value here
+  int max = 1629;  // enter your max value here
+  int min = 3617;  // enter your min value here
   int val = analogRead(4);  // connect sensor to Analog 4
 
   int valueMinDiff = abs(val - min);
   int maxMinDiff = abs(max - min);
   float moistPercentage = ((float)valueMinDiff / maxMinDiff) * 100;
-  Serial.println(moistPercentage);  // print the value to serial port
+  Serial.printf("sensor reading: %d - %f%\n", val, moistPercentage);  // print the value to serial port
+
+//  Serial.println("sensor reading: ");  // print the value to serial port
+//  Serial.println(val);
+//  Serial.println("%: ");
+//  Serial.println(moistPercentage);
 
   char str[8];
   dtostrf(moistPercentage, 1, 2, str);

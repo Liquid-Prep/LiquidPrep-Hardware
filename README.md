@@ -8,5 +8,10 @@ There are 2 options of soil moisture sensor devices supported;
     Please go through the [Arduino UNO setup documentation](./Arduino%20UNO/User-Manual.pdf) for stepwise instructions on how to setup the sensor device. 
 
 2. **[ESP32](http://esp32.net/)**:
+   ESP32 Via Bluetooth build with Arduino IDE
+
+   Or
+
+   ESP32-PlatformIO Via Bluetooth and Wifi build with PlatformIO
 
     Setup documentation coming soon.
