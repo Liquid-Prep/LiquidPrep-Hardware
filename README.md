@@ -23,7 +23,7 @@ There are 2 options of soil moisture sensor devices supported;
 - **Program size larger than the default**
   - In the IDE, choose a different built-in partition scheme from the Tools menu. 
 	Click on _Tools > Partition scheme: No OTA (Large APP)_. This will allocate enough memory for it to write.
-![large-app](large-app)
+![Partition Scheme Example](/assets/large-app.png)
 - **Arduino out of the box is missing libraries needed for the card.**
   - Libraries to include:
    -- [ArduinoJson](https://www.arduino.cc/reference/en/libraries/arduino_json/)
