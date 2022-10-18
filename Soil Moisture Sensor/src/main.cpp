@@ -227,6 +227,7 @@ void setup() {
     DeserializationError error = deserializeJson(doc, config);
     if(error) {
       Serial.println(F("Failed to read file, using default configuration"));
+      Serial.println(error.c_str());
     } else {
       airValue = doc["airValue"];
       waterValue = doc["waterValue"];
