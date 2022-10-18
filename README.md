@@ -32,11 +32,11 @@ password: 12345678
 
 # Set up your soil moisture sensor to work with Liquid Prep
 After plugging usb cable and the ESP32 is powered on, you will see an esp32ap as one of your WiFi AP(access point) options.  
-- Select esp32ap, the Join "esp32ap" window will pop open.  
+- Select esp32ap, the Join "esp32ap" window will pop open. ![Alt text](image1.jpg?raw=true "Title") 
 - Select "Configure New AP" from the menu options
 - Your WiFi AP should be listed as one of the options
 - Select the WiFi you would like join
-- Provide the passphrase to join your WiFi, if you want to assign a static ip to the sensor, uncheck "Enable DHCP" then key in the proper values.
+- Provide the passphrase to join your WiFi, if you want to assign a static ip to the sensor, uncheck "Enable DHCP" then key in the proper values. ![Alt text](image2.jpg?raw=true "Title")
 - To calibrate the sensor, go to http://yoursensorip/save_config
 - To get moisture level reading go to http://yoursensorip/moisture.json
 
