@@ -1,16 +1,23 @@
-# Liquid Prep - Soil Sensor
+# Liquid Prep - Hardware
 
-Liquid Prep Soil Sensor is the device that measures the soil moisture value and is read in the Liquid Prep App to determine the watering advice for the selected crop.
+Liquid Prep hardware is the device that measures the soil moisture value and is read in the Liquid Prep App to determine the watering advice for the selected crop.
 
 There are 2 options of soil moisture sensor devices supported;
+
 1. **[Arduino UNO](https://www.arduino.cc/)**:
 
-    Please go through the [Arduino UNO setup documentation](./Arduino%20UNO/User-Manual.pdf) for stepwise instructions on how to setup the sensor device. 
+   Please go through the [Arduino UNO setup documentation](./Arduino%20UNO/User-Manual.pdf) for stepwise instructions on how to setup the Arduino based sensor device.
 
 2. **[ESP32](http://esp32.net/)**:
-
     Setup documentation coming soon.
 
+## Develop/build firmware with PlatformIO
+    Intall PlatformIO plugin in VSCode
+    Open "Soil Moisture Sensor" project
+
+    Build & Upload firmware to ESP32
+
+### Notes
     Upload page.json and config.json to update UI
     esptool.py --chip esp32 -p /dev/cu.usbserial-0001 erase_flash
     http://192.168.1.xxx/_ac/update
@@ -34,4 +41,7 @@ After plugging usb cable and the ESP32 is powered on, you will see an esp32ap as
 To calibrate the sensor, go to http://yoursensorip/save_config
 To get moisture level reading go to http://yoursensorip/moisture.json
 
+
+# References
+   Please see the [ESP32 setup video](https://youtu.be/EU28Z_lu67w) for stepwise instructions on how to setup the ESP32 based sensor device.
 
