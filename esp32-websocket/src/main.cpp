@@ -5,11 +5,12 @@
 #include <ArduinoJson.h>
 #include <WebSocketsServer.h>
 
-#define FIRMWARE_VERSION "0.2.1";
+#define FIRMWARE_VERSION "0.2.2";
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
-WebSocketsServer webSocket(81);
+const uint8_t wsPort = 81;
+WebSocketsServer webSocket(wsPort);
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -40,7 +41,7 @@ void calculate()
   {
     soilmoisturepercent = 100;
   }
-  Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
+  // Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;
 }
@@ -56,6 +57,7 @@ void moistureJson()
   calculate();
   String response = "{\"moisture\": " + moistureLevel + "}";
   Server.send(200, "text/json", response);
+  Serial.printf("sensor reading: %s", moistureLevel);
 }
 
 String onHome(AutoConnectAux &aux, PageArgument &args)
@@ -153,28 +155,36 @@ void setup()
 
   Serial.println("WiFi connected: " + WiFi.localIP().toString());
 
-  webSocket.begin(); // <--- After AutoConnect::begin
-  webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t length)
-                    {
-    switch(type) {
-    case WStype_DISCONNECTED:
-      Serial.printf("[%u] Disconnected!\n", num);
-      break;
-    case WStype_CONNECTED: {
-        IPAddress ip = webSocket.remoteIP(num);
-        Serial.printf("[%u] Connected from %s\n", num, ip.toString().c_str());
-        webSocket.sendTXT(num, "Connected");
-      }
-      break;
-    case WStype_TEXT:
-      Serial.printf("[%u] get Text: %s\n", num, payload);
-      calculate();
-      String response = "{\"moisture\": " + moistureLevel + "}";
-      webSocket.sendTXT(num, response);
-      // send some response to the client
-      // webSocket.sendTXT(num, "message here");
-      break;
-    } });
+  if (Portal.begin())
+  {
+    Serial.println("WebSocket begins");
+    webSocket.begin(); // <--- After AutoConnect::begin
+    webSocket.onEvent([](uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+                      {
+      try {
+        switch(type) {
+        case WStype_DISCONNECTED:
+          Serial.printf("[%u] Disconnected!\n", num);
+          break;
+        case WStype_CONNECTED: {
+            IPAddress ip = webSocket.remoteIP(num);
+            Serial.printf("[%u] Connected from %s\n", num, ip.toString().c_str());
+            webSocket.sendTXT(num, "Connected");
+          }
+          break;
+        case WStype_TEXT:
+          Serial.printf("[%u] get Text: %s\n", num, payload);
+          calculate();
+          String response = "{\"moisture\": " + moistureLevel + "}";
+          webSocket.sendTXT(num, response);
+          // send some response to the client
+          // webSocket.sendTXT(num, "message here");
+          break;
+        }
+      } catch(...) {
+        Serial.println("Catch web socket errors");
+      } });
+  }
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -185,6 +195,7 @@ void setup()
 
 void loop()
 {
+  webSocket.loop();
   Portal.handleClient();
   calculate();
   delay(1000);
