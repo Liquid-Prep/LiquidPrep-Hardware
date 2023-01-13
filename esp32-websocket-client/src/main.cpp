@@ -4,11 +4,18 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WebSocketsClient.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
 
 #define FIRMWARE_VERSION "0.2.3";
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
+BLECharacteristic *pCharacteristic;
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -53,6 +60,8 @@ void calculate() {
   // Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;
+  // TODO:  only push value when there is a device connected
+  pCharacteristic->setValue(str);  // push the value via bluetooth
 }
 
 void moisture() {
@@ -115,7 +124,36 @@ String onUpdateConfig(AutoConnectAux &aux, PageArgument &args) {
   value = doc["pin"];
   Serial.println(value);
   aux["pin"].as<AutoConnectInput>().value = value;
+  String strValue = doc["wsserver"];
+  Serial.println(strValue);
+  aux["wsserver"].as<AutoConnectInput>().value = strValue;
+  value = doc["wsport"];
+  Serial.println(value);
+  aux["wsport"].as<AutoConnectInput>().value = value;
   return String();
+}
+void enableBluetooth() {
+    Serial.println("Starting BLE work!");
+
+  BLEDevice::init("ESP32-LiquidPrep");
+  BLEServer *pServer = BLEDevice::createServer();
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+  // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
+  
+  pService->start();
+  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
 }
 void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   try {
@@ -128,11 +166,6 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         break;
       case WStype_TEXT:
         Serial.printf("get Text: %s\n", payload);
-        //calculate();
-        //String response = "{\"moisture\": " + moistureLevel + "}";
-        //webSocket.sendTXT(num, response);
-        // send some response to the client
-        // webSocket.sendTXT(num, "message here");
         break;
       }
   } catch(...) {
@@ -185,6 +218,7 @@ void setup() {
       config.close();
     }
   }
+  enableBluetooth();
 
   Config.autoReconnect = true;
   Config.hostName = "liquid-prep";
