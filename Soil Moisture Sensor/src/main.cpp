@@ -172,6 +172,7 @@ String saveJson() {
 String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
   airValue = doc["airValue"] = args.arg("airValue").toInt();
   waterValue = doc["waterValue"] = args.arg("waterValue").toInt();
+  SensorPin = doc["pin"] = args.arg("pin").toInt();
   String msg = saveJson();
   aux["results"].as<AutoConnectText>().value = msg;
   return String();
@@ -184,6 +185,9 @@ String onUpdateConfig(AutoConnectAux& aux, PageArgument& args) {
   value = doc["airValue"];
   Serial.println(value);
   aux["airValue"].as<AutoConnectInput>().value = value;
+  value = doc["pin"];
+  Serial.println(value);
+  aux["pin"].as<AutoConnectInput>().value = value;
   return String();
 }
 

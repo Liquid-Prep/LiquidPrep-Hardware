@@ -29,6 +29,15 @@
       {
         "name": "caption3",
         "type": "ACText",
+        "value": "Pin"
+      },
+      {
+        "name": "pin",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption4",
+        "type": "ACText",
         "value": "Service uuid"
       },
       {
@@ -36,7 +45,7 @@
         "type": "ACInput"
       },
       {
-        "name": "caption4",
+        "name": "caption5",
         "type": "ACText",
         "value": "Characteristic uuid"
       },
