@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 #include <WebSocketsServer.h>
 
-#define FIRMWARE_VERSION "0.2.2";
+#define FIRMWARE_VERSION "0.2.3";
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
@@ -23,8 +23,7 @@ float soilmoisturepercent = 0;
 const char *fwVersion = FIRMWARE_VERSION;
 StaticJsonDocument<512> doc;
 
-void calculate()
-{
+void calculate() {
   int val = analogRead(SensorPin); // connect sensor to Analog pin
 
   // soilmoisturepercent = map(soilMoistureValue, airValue, waterValue, 0, 100);
@@ -46,29 +45,25 @@ void calculate()
   moistureLevel = str;
 }
 
-void moisture()
-{
+void moisture() {
   calculate();
   Server.send(200, "text/html", moistureLevel);
 }
 
-void moistureJson()
-{
+void moistureJson() {
   calculate();
   String response = "{\"moisture\": " + moistureLevel + "}";
   Server.send(200, "text/json", response);
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
-String onHome(AutoConnectAux &aux, PageArgument &args)
-{
+String onHome(AutoConnectAux &aux, PageArgument &args) {
   calculate();
   Serial.println(moistureLevel);
   aux["results"].as<AutoConnectText>().value = moistureLevel;
   return String();
 }
-String saveJson()
-{
+String saveJson() {
   String msg = "";
   File configFile = SPIFFS.open("/config.json", "w+");
   if (configFile)
@@ -85,28 +80,29 @@ String saveJson()
   return msg;
 }
 
-String onSaveConfig(AutoConnectAux &aux, PageArgument &args)
-{
+String onSaveConfig(AutoConnectAux &aux, PageArgument &args) {
   airValue = doc["airValue"] = args.arg("airValue").toInt();
   waterValue = doc["waterValue"] = args.arg("waterValue").toInt();
+  SensorPin = doc["pin"] = args.arg("pin").toInt();
   String msg = saveJson();
   aux["results"].as<AutoConnectText>().value = msg;
   return String();
 }
 
-String onUpdateConfig(AutoConnectAux &aux, PageArgument &args)
-{
+String onUpdateConfig(AutoConnectAux &aux, PageArgument &args) {
   int value = doc["waterValue"];
   Serial.println(value);
   aux["waterValue"].as<AutoConnectInput>().value = value;
   value = doc["airValue"];
   Serial.println(value);
   aux["airValue"].as<AutoConnectInput>().value = value;
+  value = doc["pin"];
+  Serial.println(value);
+  aux["pin"].as<AutoConnectInput>().value = value;
   return String();
 }
 
-void setup()
-{
+void setup() {
   delay(1000);
   Serial.begin(115200);
   Serial.println();
