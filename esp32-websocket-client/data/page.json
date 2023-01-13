@@ -1,0 +1,117 @@
+[
+  {
+    "title": "Config",
+    "uri": "/update_config",
+    "menu": true,
+    "element": [
+      {
+        "name": "header",
+        "type": "ACText"
+      },
+      {
+        "name": "caption1",
+        "type": "ACText",
+        "value": "Air value"
+      },
+      {
+        "name": "airValue",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption2",
+        "type": "ACText",
+        "value": "Water value"
+      },
+      {
+        "name": "waterValue",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption3",
+        "type": "ACText",
+        "value": "Pin"
+      },
+      {
+        "name": "pin",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption4",
+        "type": "ACText",
+        "value": "WebSocket Server"
+      },
+      {
+        "name": "wsserver",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption5",
+        "type": "ACText",
+        "value": "WebSocket Port"
+      },
+      {
+        "name": "wsport",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption6",
+        "type": "ACText",
+        "value": "Service uuid"
+      },
+      {
+        "name": "serviceUuid",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption7",
+        "type": "ACText",
+        "value": "Characteristic uuid"
+      },
+      {
+        "name": "characteristicUuid",
+        "type": "ACInput"
+      },
+      {
+        "name": "save",
+        "type": "ACSubmit",
+        "value": "SAVE",
+        "uri": "/save_config"
+      }
+    ]
+  },
+  {
+    "uri": "/save_config",
+    "title": "Save configuration",
+    "menu": false,
+    "element": [
+      {
+        "name": "results",
+        "type": "ACText",
+        "value": ""
+      }
+    ]
+  },
+  {
+    "uri": "/",
+    "title": "Moisture reading",
+    "menu": false,
+    "element": [
+      {
+        "name": "moisture",
+        "type": "ACText",
+        "value": "Moisture:  "
+      },
+      {
+        "name": "results",
+        "type": "ACText",
+        "value": "..."
+      },
+      {
+        "name": "save",
+        "type": "ACSubmit",
+        "value": "Read again...",
+        "uri": "/"
+      }
+    ]
+  }
+]    
