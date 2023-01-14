@@ -29,58 +29,11 @@ int SensorPin = 32;
 int soilMoistureValue = 0;
 float soilmoisturepercent=0;
 const char* fwVersion = FIRMWARE_VERSION;
-StaticJsonDocument<512> doc;
+DynamicJsonDocument doc(1024);
 
-void homePage() {
-  String htmlResponse = "";
-  String jsonString2 = "";
-  char jsonString[300];
-  char temp[10];
-  unsigned int totalBytes = 0;
-  unsigned int usedBytes = 0;
-  
-  htmlResponse = "<!DOCTYPE html>\
-  <html lang=\"en\">\
-    <head>\
-      <meta charset=\"utf-8\">\
-      <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
-    </head>\
-    <body>\
-      <h1>Get moisture reading</h1>\
-      <div>\
-        <div class=\"moisture_container\">Moisture: </div><br>\
-        <button id=\"moisture_button\" class=\"moist\">Get Moisture</button>\
-      </div>\
-      <h3>Remove wifi</h3>\
-      <div>\
-        <div class=\"wifi_container\">Wifi: </div><br>\
-        <button id=\"wifi_button\" class=\"moist\">Remove Wifi</button>\
-      </div>\
-      <script src=\"https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js\"></script>\
-      <script>\
-        var message;\
-        var msg;\
-        $('.moist').click(function(e){\
-          e.preventDefault();\
-          if(e.target.id === 'moisture_button') {\
-            msg = 'msg1';\
-            message = $('#msg1').val();\
-            $.get('/moisture', function(data){\
-              $('.moisture_container')[0].innerText = 'Moisture: ' + data + '%';\
-              console.log(data);\
-            });\
-          }\
-          else if(e.target.id === 'wifi_button') {\
-            $.get('/cancelwifi', function(data){\
-              $('.wifi_container')[0].innerText = data;\
-              console.log(data);\
-            });\
-          }\
-        });\
-      </script>";
-  htmlResponse = htmlResponse + "<br></body></html>";
-  Server.send ( 200, "text/html", htmlResponse );
-}
+unsigned long previousMillis = 0;
+unsigned long currentMillis;
+unsigned long interval=60000; //interval for sending data to the websocket server in ms
 
 void calculate() {
   int val = analogRead(SensorPin);  // connect sensor to Analog pin
@@ -102,40 +55,6 @@ void calculate() {
   // TODO:  only push value when there is a device connected
   pCharacteristic->setValue(str);  // push the value via bluetooth
 //https://community.blynk.cc/t/interesting-esp32-issue-cant-use-analogread-with-wifi-and-or-esp-wifimanager-library/49130
-}
-
-void cancelwifi(void) {
-  AutoConnectCredential credential;
-  station_config_t config;
-  uint8_t ent = credential.entries();
-  String msg = "";
-
-  Serial.println("AutoConnectCredential deleting");
-  if (ent)
-    Serial.printf("Available %d entries.\n", ent);
-  else {
-    Serial.println("No credentials saved.");
-    WiFi.disconnect(true, true); // Clear memorized STA configuration
-    if (!WiFi.isConnected()) {
-      Serial.println("WiFi disconnected");
-    }
-    Server.send ( 200, "text/html", "WiFi disconnected" );
-    return;
-  }
-
-  while (ent--) {
-    credential.load((int8_t)0, &config);
-    if (credential.del((const char*)&config.ssid[0])) {
-      Serial.printf("%s deleted.\n", (const char*)config.ssid);
-    } else {
-      Serial.printf("%s failed to delete.\n", (const char*)config.ssid);
-    }  
-  }
-  WiFi.disconnect(true, true); // Clear memorized STA configuration
-  if (!WiFi.isConnected()) {
-    Serial.println("WiFi disconnected");
-  }
-  Server.send ( 200, "text/html", "WiFi disconnected" );
 }
 
 void moisture() {
@@ -168,12 +87,27 @@ String saveJson() {
   }
   return msg;
 }
+boolean saveJsonFile(String file) {
+  String msg = "";
+  boolean success = false;
+  File configFile = SPIFFS.open(file, "w+"); 
+  if(configFile) {
+    serializeJson(doc, configFile);
+    msg = "Updated " + file + " config successfully!";
+    configFile.close();
+    success = true;
+  } else {
+    msg = "Failed to open " + file + " config file for writing!";
+  }
+  Serial.println(msg);
+  return success;
+}
 
 String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
   airValue = doc["airValue"] = args.arg("airValue").toInt();
   waterValue = doc["waterValue"] = args.arg("waterValue").toInt();
   SensorPin = doc["pin"] = args.arg("pin").toInt();
-  String msg = saveJson();
+  String msg = saveJsonFile("/config.json") ? "Updated config successfully" : "Failed to update";
   aux["results"].as<AutoConnectText>().value = msg;
   return String();
 }
@@ -215,23 +149,36 @@ void enableBluetooth() {
   Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
 }
 
-void setup() {
-  delay(1000);
-  Serial.begin(115200);
-  Serial.println();
-  SPIFFS.begin();
+void createConfigJson() {
+  char json[] = "{\"uuid\":{\"SERVICE_UUID\":\"4fafc201-1fb5-459e-8fcc-c5c9c331914b\",\"CHARACTERISTIC_UUID\": \"beb5483e-36e1-4688-b7f5-ea07361b26a8\"},\"airValue\":3440,\"waterValue\":1803,\"pin\":32}";
+  deserializeJson(doc, json);
+  saveJsonFile("/config.json");  
+}
 
-  File page = SPIFFS.open("/page.json", "r");
-  if(page) {
-    Portal.load(page);
-    page.close();
-  }
+void createPageJson() {
+  char json[] = "[{\"title\":\"Config\",\"uri\":\"/update_config\",\"menu\":true,\"element\":[{\"name\":\"header\",\"type\":\"ACText\"},{\"name\":\"caption1\",\"type\":\"ACText\",\"value\":\"Air value\"},{\"name\":\"airValue\",\"type\":\"ACInput\"},{\"name\":\"caption2\",\"type\":\"ACText\",\"value\":\"Water value\"},{\"name\":\"waterValue\",\"type\":\"ACInput\"},{\"name\":\"caption3\",\"type\":\"ACText\",\"value\":\"Pin\"},{\"name\":\"pin\",\"type\":\"ACInput\"},{\"name\":\"caption4\",\"type\":\"ACText\",\"value\":\"Service uuid\"},{\"name\":\"serviceUuid\",\"type\":\"ACInput\"},{\"name\":\"caption5\",\"type\":\"ACText\",\"value\":\"Characteristic uuid\"},{\"name\":\"characteristicUuid\",\"type\":\"ACInput\"},{\"name\":\"save\",\"type\":\"ACSubmit\",\"value\":\"SAVE\",\"uri\":\"/save_config\"}]},{\"uri\":\"/save_config\",\"title\":\"Save configuration\",\"menu\":false,\"element\":[{\"name\":\"results\",\"type\":\"ACText\",\"value\":\"\"}]},{\"uri\":\\/\",\"title\":\"Moisture reading\",\"menu\":false,\"element\":[{\"name\":\"moisture\",\"type\":\"ACText\",\"value\":\"Moisture:  \"},{\"name\":\"results\",\"type\":\"ACText\",\"value\":\"...\"},{\"name\":\"save\",\"type\":\"ACSubmit\",\"value\":\"Read again...\",\"uri\":\"/\"}]}]";
+  deserializeJson(doc, json);
+  if(saveJsonFile("/page.json") == true) {
+    File page = SPIFFS.open("/page.json", "r");
+    if(page) {
+      Portal.load(page);
+      page.close();
+    }
+  } 
+}
+
+void loadConfigJson() {
   File config = SPIFFS.open("/config.json", "r");
-  if(config) {
+  if(!config) {
+    createConfigJson();
+  } else {
     DeserializationError error = deserializeJson(doc, config);
     if(error) {
       Serial.println(F("Failed to read file, using default configuration"));
       Serial.println(error.c_str());
+      if(error.c_str() == "EmptyInput") {
+        createConfigJson();
+      }
     } else {
       airValue = doc["airValue"];
       waterValue = doc["waterValue"];
@@ -241,6 +188,29 @@ void setup() {
       config.close();
     }
   }
+}
+void loadPageJson() {
+  File page = SPIFFS.open("/page.json", "r");
+  if(!page) {
+    Serial.println("no page: ");
+    createPageJson();
+  } else {
+    Portal.load(page);
+    page.close();
+  }
+}
+void setup() {
+  int waitCount = 0;
+  delay(1000);
+  Serial.begin(115200);
+  Serial.println();
+  enableBluetooth();
+
+  while (!SPIFFS.begin(true) && waitCount++ < 3) {
+    delay(1000);
+  }
+  loadPageJson();
+  loadConfigJson();
 
   Config.autoReconnect = true;
   Config.hostName = "liquid-prep";
@@ -259,15 +229,22 @@ void setup() {
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());
   }
-  while(WiFi.status() != WL_CONNECTED) {
+  waitCount = 0;
+  while (WiFi.status() != WL_CONNECTED && waitCount++ < 3) {
     delay(500);
     Serial.print(".");
   }
-  enableBluetooth();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("Failed to connect to WiFi");
+  } else {
+  }
 }
 
 void loop() {
   Portal.handleClient();
-  calculate();
-  delay(1000);
+  currentMillis=millis(); 
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    calculate();
+  }
 }
