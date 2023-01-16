@@ -33,7 +33,7 @@ DynamicJsonDocument doc(1024);
 
 unsigned long previousMillis = 0;
 unsigned long currentMillis;
-unsigned long interval=60000; //interval for sending data to the websocket server in ms
+unsigned long interval=3000; //interval for reading data
 
 void calculate() {
   int val = analogRead(SensorPin);  // connect sensor to Analog pin
@@ -87,27 +87,12 @@ String saveJson() {
   }
   return msg;
 }
-boolean saveJsonFile(String file) {
-  String msg = "";
-  boolean success = false;
-  File configFile = SPIFFS.open(file, "w+"); 
-  if(configFile) {
-    serializeJson(doc, configFile);
-    msg = "Updated " + file + " config successfully!";
-    configFile.close();
-    success = true;
-  } else {
-    msg = "Failed to open " + file + " config file for writing!";
-  }
-  Serial.println(msg);
-  return success;
-}
 
 String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
   airValue = doc["airValue"] = args.arg("airValue").toInt();
   waterValue = doc["waterValue"] = args.arg("waterValue").toInt();
   SensorPin = doc["pin"] = args.arg("pin").toInt();
-  String msg = saveJsonFile("/config.json") ? "Updated config successfully" : "Failed to update";
+  String msg = saveJson();
   aux["results"].as<AutoConnectText>().value = msg;
   return String();
 }
@@ -149,56 +134,6 @@ void enableBluetooth() {
   Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
 }
 
-void createConfigJson() {
-  char json[] = "{\"uuid\":{\"SERVICE_UUID\":\"4fafc201-1fb5-459e-8fcc-c5c9c331914b\",\"CHARACTERISTIC_UUID\": \"beb5483e-36e1-4688-b7f5-ea07361b26a8\"},\"airValue\":3440,\"waterValue\":1803,\"pin\":32}";
-  deserializeJson(doc, json);
-  saveJsonFile("/config.json");  
-}
-
-void createPageJson() {
-  char json[] = "[{\"title\":\"Config\",\"uri\":\"/update_config\",\"menu\":true,\"element\":[{\"name\":\"header\",\"type\":\"ACText\"},{\"name\":\"caption1\",\"type\":\"ACText\",\"value\":\"Air value\"},{\"name\":\"airValue\",\"type\":\"ACInput\"},{\"name\":\"caption2\",\"type\":\"ACText\",\"value\":\"Water value\"},{\"name\":\"waterValue\",\"type\":\"ACInput\"},{\"name\":\"caption3\",\"type\":\"ACText\",\"value\":\"Pin\"},{\"name\":\"pin\",\"type\":\"ACInput\"},{\"name\":\"caption4\",\"type\":\"ACText\",\"value\":\"Service uuid\"},{\"name\":\"serviceUuid\",\"type\":\"ACInput\"},{\"name\":\"caption5\",\"type\":\"ACText\",\"value\":\"Characteristic uuid\"},{\"name\":\"characteristicUuid\",\"type\":\"ACInput\"},{\"name\":\"save\",\"type\":\"ACSubmit\",\"value\":\"SAVE\",\"uri\":\"/save_config\"}]},{\"uri\":\"/save_config\",\"title\":\"Save configuration\",\"menu\":false,\"element\":[{\"name\":\"results\",\"type\":\"ACText\",\"value\":\"\"}]},{\"uri\":\\/\",\"title\":\"Moisture reading\",\"menu\":false,\"element\":[{\"name\":\"moisture\",\"type\":\"ACText\",\"value\":\"Moisture:  \"},{\"name\":\"results\",\"type\":\"ACText\",\"value\":\"...\"},{\"name\":\"save\",\"type\":\"ACSubmit\",\"value\":\"Read again...\",\"uri\":\"/\"}]}]";
-  deserializeJson(doc, json);
-  if(saveJsonFile("/page.json") == true) {
-    File page = SPIFFS.open("/page.json", "r");
-    if(page) {
-      Portal.load(page);
-      page.close();
-    }
-  } 
-}
-
-void loadConfigJson() {
-  File config = SPIFFS.open("/config.json", "r");
-  if(!config || config.size() <= 0) {
-    createConfigJson();
-  } else {
-    DeserializationError error = deserializeJson(doc, config);
-    if(error) {
-      Serial.println(F("Failed to read file, using default configuration"));
-      Serial.println(error.c_str());
-      if(error.c_str() == "EmptyInput") {
-        createConfigJson();
-      }
-    } else {
-      airValue = doc["airValue"];
-      waterValue = doc["waterValue"];
-      SensorPin = doc["pin"]; 
-      int pin = doc["pin"];
-      Serial.println(pin);
-      config.close();
-    }
-  }
-}
-void loadPageJson() {
-  File page = SPIFFS.open("/page.json", "r");
-  if(!page || page.size() <= 0) {
-    Serial.println("no page: ");
-    createPageJson();
-  } else {
-    Portal.load(page);
-    page.close();
-  }
-}
 void setup() {
   int waitCount = 0;
   delay(1000);
@@ -209,8 +144,27 @@ void setup() {
   while (!SPIFFS.begin(true) && waitCount++ < 3) {
     delay(1000);
   }
-  loadPageJson();
-  loadConfigJson();
+
+  File page = SPIFFS.open("/page.json", "r");
+  if(page) {
+    Portal.load(page);
+    page.close();
+  }
+  File config = SPIFFS.open("/config.json", "r");
+  if(config) {
+    DeserializationError error = deserializeJson(doc, config);
+    if(error) {
+      Serial.println(F("Failed to read file, using default configuration"));
+      Serial.println(error.c_str());
+    } else {
+      airValue = doc["airValue"];
+      waterValue = doc["waterValue"];
+      SensorPin = doc["pin"]; 
+      int pin = doc["pin"];
+      Serial.println(pin);
+      config.close();
+    }
+  }
 
   Config.autoReconnect = true;
   Config.hostName = "liquid-prep";
@@ -236,7 +190,6 @@ void setup() {
   }
   if (WiFi.status() != WL_CONNECTED) {
     Serial.print("Failed to connect to WiFi");
-  } else {
   }
 }
 
@@ -245,6 +198,9 @@ void loop() {
   currentMillis=millis(); 
   if (currentMillis - previousMillis >= interval) {
     previousMillis = currentMillis;
+    calculate();
+  } else if(previousMillis == 0) {
+    previousMillis = 1;
     calculate();
   }
 }
