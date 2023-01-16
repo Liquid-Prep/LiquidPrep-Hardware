@@ -9,7 +9,7 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 
-#define FIRMWARE_VERSION           "0.2.1";
+#define FIRMWARE_VERSION           "0.2.2";
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
 
