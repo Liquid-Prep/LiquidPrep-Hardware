@@ -169,7 +169,7 @@ void createPageJson() {
 
 void loadConfigJson() {
   File config = SPIFFS.open("/config.json", "r");
-  if(!config) {
+  if(!config || config.size() <= 0) {
     createConfigJson();
   } else {
     DeserializationError error = deserializeJson(doc, config);
@@ -191,7 +191,7 @@ void loadConfigJson() {
 }
 void loadPageJson() {
   File page = SPIFFS.open("/page.json", "r");
-  if(!page) {
+  if(!page || page.size() <= 0) {
     Serial.println("no page: ");
     createPageJson();
   } else {
