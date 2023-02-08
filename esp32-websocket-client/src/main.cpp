@@ -159,10 +159,10 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   try {
     switch(type) {
       case WStype_DISCONNECTED:
-        Serial.printf("Disconnected!\n");
+        Serial.printf("Websocket Disconnected!\n");
         break;
       case WStype_CONNECTED:
-          Serial.printf("Connected\n");
+          Serial.printf("Websocket Connected\n");
         break;
       case WStype_TEXT:
         Serial.printf("get Text: %s\n", payload);
