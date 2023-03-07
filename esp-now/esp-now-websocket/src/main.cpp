@@ -1,18 +1,38 @@
 #include <WebServer.h>
-#include <WiFi.h>
+#include "SPIFFS.h"
 #include <AutoConnect.h>
-#include <Arduino.h>
-#include <ArduinoJson.h>
 #include <WebSocketsClient.h>
+#include <common.h>
+
 
 #define FIRMWARE_VERSION           "0.2.3";
-// See the following for generating UUIDs:
-// https://www.uuidgenerator.net/
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define BOARD_ID 1
+#define MY_NAME         "ZONE_" + BOARD_ID
+#define MY_ROLE         ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
+#define RECEIVER_ROLE   ESP_NOW_ROLE_SLAVE              // set the role of the receiver
+#define WIFI_CHANNEL    1
 
-//BLECharacteristic *pCharacteristic;
+//uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+//uint8_t receiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
+//uint8_t tmpAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+
+//typedef struct struct_message {  
+//  int currPointer;
+//  int id;
+//  String name;
+//  String moisture;
+//  unsigned long timestamp;
+
+//} struct_message;
+//struct_message myData;
+//esp_now_peer_info_t peerInfo;
+
+typedef struct struct_param {
+  String name;
+  String value;
+} struct_param;
+
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -30,7 +50,7 @@ unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 
 // TODO: allow input certain values in webtools and writ to SPIFFS at the time of flashing
-unsigned long interval=60000; //interval for reading data
+int interval=60000; //interval for reading data
 String wsserver = "192.168.86.24";  //ip address of Express server
 int wsport= 3000;
 char path[] = "/";   //identifier of this device
@@ -58,12 +78,147 @@ void calculate() {
   //pCharacteristic->setValue(str);  // push the value via bluetooth
 }
 
+// callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+    Serial.print("\r\nLast Packet Send Status:\t");
+    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+struct_message incoming_data;
+void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
+{
+    memcpy(&myData, incomingData, sizeof(myData));
+    Serial.print("Bytes received: ");
+    Serial.println(len);
+    Serial.printf("%u\n", mac);
+    Serial.println(myData.moisture + ", " + myData.name + ", " + myData.task);
+    Serial.println(myData.timestamp);
+
+    Serial.println();
+}
+
+//boolean addPeer(uint8_t *macAddress) {
+//  // Register peer
+//  memcpy(peerInfo.peer_addr, macAddress, 6);
+//  peerInfo.channel = 0;
+//  peerInfo.encrypt = false;
+//  // Add peer
+//  esp_err_t ret = esp_now_add_peer(&peerInfo);
+//  if(ret != ESP_OK) {
+//    Serial.println("Failed to add peer, error: " + ret);
+//    return false;
+//  } else {
+//    return true;
+//  }
+//}
+//boolean deletePeer(uint8_t *macAddress) {
+//  esp_err_t ret = esp_now_del_peer(macAddress);
+//  if(ret != ESP_OK) {
+//    Serial.println("Failed to delete peer, error: " + ret);
+//    return false;
+//  } else {
+//    return true;
+//  }
+//}
 String moistureJson() {
   calculate();
   String response = "{\"moisture\": " + moistureLevel + "}";
   Server.send(200, "text/json", response);
   Serial.printf("sensor reading: %s\n", moistureLevel);
   return response;
+}
+
+void addReceiverAddress() {
+  Serial.println(Server.args());
+  Serial.printf("arg(0): %u\n", Server.arg(0));
+  boolean success = false;  
+  if(Server.args() == 2) {
+    mac2int(Server.arg(0), tmpAddress);
+    Serial.printf("temp: %u\n", tmpAddress);
+    Serial.printf("host: %u\n", hostAddress);
+
+    if(Server.argName(0) == "host_addr" && memcmp(tmpAddress, hostAddress, 6) == 0) {
+      Serial.println("equal...");
+      Serial.println(Server.arg(1));
+      mac2int(Server.arg(1), tmpAddress);
+      if(Server.argName(1) == "recv_addr" && memcmp(tmpAddress, gatewayReceiverAddress, 6) != 0) {
+        Serial.println("adding peer...");
+        addPeer(tmpAddress);
+        success = true;
+
+        Serial.print("Param name: ");
+        Serial.println(Server.argName(0));
+        Serial.print("Param value: ");
+        Serial.println(Server.arg(0));
+        Serial.println("------");
+      }
+    }
+  }
+  if(success) {
+    Server.send(200, "text/plain", "Good to go!");
+  } else {
+    Server.send(400, "text/plain", "Invalid request params");
+  }  
+}
+
+void updateReceiverAddress() {
+  boolean success = false;
+  if(Server.args() == 2) {
+    String hostAddr = Server.arg(0);
+    String taskValue = Server.arg(1);
+
+    mac2int(hostAddr, tmpAddress);
+    if(Server.argName(0) == "host_addr" && tmpAddress == hostAddress) {
+      mac2int(taskValue, tmpAddress);
+      if(Server.argName(1) == "recv_addr" && tmpAddress != gatewayReceiverAddress) {
+        deletePeer(gatewayReceiverAddress);
+        std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(gatewayReceiverAddress));
+        addPeer(gatewayReceiverAddress);
+        success = true;
+
+        Serial.print("Param name: ");
+        Serial.println(Server.argName(0));
+        Serial.print("Param value: ");
+        Serial.println(Server.arg(0));
+        Serial.println("------");
+      }
+    } else {
+      success = true;
+      String task = Server.argName(1);
+      struct_message payload;
+      mac2int(hostAddr, payload.hostAddress);
+      if(task == "recv_addr") {
+        payload.task = UPDATE_RECEIVER_ADDR;
+        mac2int(taskValue, payload.hostAddress);
+      } else if(task == "esp_interval") {
+        Serial.println(hostAddr);
+        Serial.printf("%u\n", payload.hostAddress);
+        payload.task = UPDATE_ESP_INTERVAL;
+        payload.espInterval = atoi(taskValue.c_str());
+      } else if(task == "device_name") {
+        payload.task = UPDATE_DEVICE_NAME;
+        payload.name = taskValue;
+      } else if(task == "device_id") {
+        payload.task = UPDATE_DEVICE_ID;
+        payload.id = atoi(taskValue.c_str());
+      }
+      mac2int(hostAddr, tmpAddress);
+      if(esp_now_is_peer_exist(tmpAddress)) {
+        Serial.println("found peer");
+      } else {
+        Serial.println("peer not found");
+        addPeer(tmpAddress);  
+      }
+      esp_err_t result = esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+      
+    }
+  }
+  if(success) {
+    Server.send(200, "text/plain", "Good to go!");
+  } else {
+    Server.send(400, "text/plain", "Invalid request params");
+  }  
 }
 
 String onHome(AutoConnectAux& aux, PageArgument& args) {
@@ -198,10 +353,18 @@ void setup() {
   Server.enableCORS();
   Server.on("/moisture", moistureJson);
   Server.on("/moisture.json", moistureJson);
+  Server.on("/update_receiver_address", updateReceiverAddress);
+  Server.on("/add_receiver_address", addReceiverAddress);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());
     Serial.println("My MAC address is: " + WiFi.macAddress());
+    Serial.print("Wi-Fi Channel: ");
+    Serial.println(WiFi.channel());
+    Serial.print("Wi-Fi SSID: ");
+    Serial.println(WiFi.SSID());
+    mac2int(WiFi.macAddress(), hostAddress);
+    Serial.printf("host: %u\n", hostAddress);
   }
   waitCount = 0;
   while (WiFi.status() != WL_CONNECTED && waitCount++ < 3) {
@@ -213,6 +376,14 @@ void setup() {
   } else {
     wsconnect();
   }
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+      Serial.println("Error initializing ESP-NOW");
+      return;
+  }
+  esp_now_register_recv_cb(OnDataRecv);
+  esp_now_register_send_cb(OnDataSent);
+  addPeer(gatewayReceiverAddress);  
 }
 
 void sendData(String data) {

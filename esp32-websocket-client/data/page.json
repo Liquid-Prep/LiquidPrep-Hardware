@@ -56,19 +56,19 @@
       {
         "name": "caption6",
         "type": "ACText",
-        "value": "Service uuid"
+        "value": "Receiver Address"
       },
       {
-        "name": "serviceUuid",
+        "name": "receiverAddress",
         "type": "ACInput"
       },
       {
         "name": "caption7",
         "type": "ACText",
-        "value": "Characteristic uuid"
+        "value": "Sender Address"
       },
       {
-        "name": "characteristicUuid",
+        "name": "senderAddress",
         "type": "ACInput"
       },
       {
