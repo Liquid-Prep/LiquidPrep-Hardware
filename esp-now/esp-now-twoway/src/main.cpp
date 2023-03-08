@@ -3,12 +3,8 @@
 #include <common.h>
 #include <esp_wifi.h>
 
-#define FIRMWARE_VERSION           "0.2.3";
-#define BOARD_ID 1
-#define MY_NAME         "ZONE_" + BOARD_ID
-#define MY_ROLE         ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
-#define RECEIVER_ROLE   ESP_NOW_ROLE_SLAVE              // set the role of the receiver
-#define WIFI_CHANNEL    1
+int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
+String DEVICE_NAME = "ZONE_1";       // set device name
 
 //uint8_t output[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 //uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -16,8 +12,11 @@
 //uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
 
 //struct_message myData;
+
 struct_message payload;
 
+String hostMac = "";
+String receiverMac = "";
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
 int waterValue = 1803; // 1779;  // enter your water value here
@@ -78,7 +77,7 @@ void moistureJson() {
 
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.printf("\r\nLast Packet Send Status: %u\t", receiverAddress);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
@@ -89,18 +88,23 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.printf("%u\n", mac);
   Serial.println(payload.task);
   Serial.println(payload.espInterval);
-  Serial.printf("%u, %u\n", payload.hostAddress, hostAddress);
+  Serial.printf("%s, %s, %u\n", payload.hostAddress, hostMac, hostAddress);
   Serial.println("------");
   //mac2int(payload.hostAddress, tmpAddress);
-  if(payload.hostAddress == hostAddress) {
+  if(payload.hostAddress == hostMac) {
     Serial.println("updating...");
     switch(payload.task) {
       case UPDATE_RECEIVER_ADDR:
-        if(payload.receiverAddress != receiverAddress) {
+        if(payload.receiverAddress != receiverMac) {
           deletePeer(receiverAddress);
-          std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
+          receiverMac = payload.receiverAddress;
+          stringToInt(receiverMac, receiverAddress);
+          //std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
           addPeer(receiverAddress);
         }
+      break;
+      case RELATE_MESSAGE:
+        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case UPDATE_WIFI_CHANNEL:
       break;
@@ -153,8 +157,7 @@ String saveJson() {
 
 //}
 
-void setup()
-{
+void setup() {
   int waitCount = 0;
   delay(1000);
   while (!SPIFFS.begin(true) && waitCount++ < 3) {
@@ -163,10 +166,12 @@ void setup()
   // Init Serial Monitor
   Serial.begin(115200);
   // Set device as a Wi-Fi Station
-  Serial.println("Initializing..." + BOARD_ID);
+  Serial.println("Initializing...");
+  Serial.printf("Device Name: %s\nDevice Id: %d\n", myData.name, myData.id);
   Serial.println("My MAC address is: " + WiFi.macAddress());
-  mac2int(WiFi.macAddress(), hostAddress);
-  Serial.printf("My MAC address is: %u\n", hostAddress);
+  hostMac = removeFromString(WiFi.macAddress(), (char *)":");
+  stringToInt(hostMac, hostAddress);
+  Serial.printf("My MAC address is: %s, %u\n", hostMac, hostAddress);
   Serial.print("Wi-Fi Channel: ");
   Serial.println(WiFi.channel());
 
@@ -194,22 +199,23 @@ void setup()
   esp_now_register_send_cb(OnDataSent);
 
   addPeer(receiverAddress);
+
 }
 
-void loop()
-{
-    calculate();
-    // Set values to send
-    //dtostrf(soilmoisturepercent, 1, 2, myData.moisture[myData.currPointer]);
-    Serial.println(espInterval);
-    Serial.println(moistureLevel) ;
-    
-    myData.id = BOARD_ID;
-    myData.moisture = moistureLevel;
-    myData.name = "Zone_1";
-    //myData.timestamp = millis();
-    //myData.currPointer++;
-    esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &myData, sizeof(myData));
+void loop() {
+  calculate();
+  // Set values to send
+  myData.id = DEVICE_ID;
+  myData.name = DEVICE_NAME;
+  Serial.printf("info: %d, %s, %d, %s\n", espInterval, moistureLevel, myData.id, myData.name);
+  if(myData.id > 1) {
+    // TODO:  need a better way to identify leader vs workers
+    myData.task = RELATE_MESSAGE;
+  } else {
+    myData.task = NO_TASK;
+  }
+  myData.moisture = moistureLevel;
+  esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &myData, sizeof(myData));
 
-    delay(espInterval);
+  delay(espInterval);
 }

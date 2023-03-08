@@ -4,14 +4,8 @@
 #include <WebSocketsClient.h>
 #include <common.h>
 
-
-#define FIRMWARE_VERSION           "0.2.3";
-
-#define BOARD_ID 1
-#define MY_NAME         "ZONE_" + BOARD_ID
-#define MY_ROLE         ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
-#define RECEIVER_ROLE   ESP_NOW_ROLE_SLAVE              // set the role of the receiver
-#define WIFI_CHANNEL    1
+#define DEVICE_ID         0             // set device id
+#define DEVICE_NAME       "GATEWAY"      // set device name
 
 //uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 //uint8_t receiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
@@ -28,11 +22,7 @@
 //struct_message myData;
 //esp_now_peer_info_t peerInfo;
 
-typedef struct struct_param {
-  String name;
-  String value;
-} struct_param;
-
+String hostMac = "";
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -79,23 +69,21 @@ void calculate() {
 }
 
 // callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
-{
-    Serial.print("\r\nLast Packet Send Status:\t");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Serial.print("\r\nLast Packet Send Status:\t");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
-struct_message incoming_data;
-void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
-{
-    memcpy(&myData, incomingData, sizeof(myData));
-    Serial.print("Bytes received: ");
-    Serial.println(len);
-    Serial.printf("%u\n", mac);
-    Serial.println(myData.moisture + ", " + myData.name + ", " + myData.task);
-    Serial.println(myData.timestamp);
+void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  struct_message payload;
 
-    Serial.println();
+  memcpy(&payload, incomingData, sizeof(payload));
+  Serial.print("Bytes received: ");
+  Serial.println(len);
+  Serial.printf("%u\n", mac);
+  Serial.println(payload.moisture + ", " + payload.name + ", " + payload.task);
+
+  Serial.println();
 }
 
 //boolean addPeer(uint8_t *macAddress) {
@@ -129,48 +117,46 @@ String moistureJson() {
   return response;
 }
 
-void addReceiverAddress() {
-  Serial.println(Server.args());
-  Serial.printf("arg(0): %u\n", Server.arg(0));
+void registerESP32() {
+  struct_message payload;
   boolean success = false;  
-  if(Server.args() == 2) {
-    mac2int(Server.arg(0), tmpAddress);
-    Serial.printf("temp: %u\n", tmpAddress);
-    Serial.printf("host: %u\n", hostAddress);
-
-    if(Server.argName(0) == "host_addr" && memcmp(tmpAddress, hostAddress, 6) == 0) {
-      Serial.println("equal...");
-      Serial.println(Server.arg(1));
-      mac2int(Server.arg(1), tmpAddress);
-      if(Server.argName(1) == "recv_addr" && memcmp(tmpAddress, gatewayReceiverAddress, 6) != 0) {
-        Serial.println("adding peer...");
-        addPeer(tmpAddress);
-        success = true;
-
-        Serial.print("Param name: ");
-        Serial.println(Server.argName(0));
-        Serial.print("Param value: ");
-        Serial.println(Server.arg(0));
-        Serial.println("------");
+  if(Server.args() == 2 && Server.argName(1) == "recv_addr") {
+    String hostAddr = removeFromString(Server.arg(0), (char *)":");
+    String taskValue = removeFromString(Server.arg(1), (char *)":");
+    if(hostAddr != hostMac) {
+      success = true;
+      payload.task = UPDATE_RECEIVER_ADDR;
+      payload.hostAddress = hostAddr;
+      payload.receiverAddress = taskValue;
+      stringToInt(hostAddr, tmpAddress);
+      if(esp_now_is_peer_exist(tmpAddress)) {
+        Serial.println("found peer");
+      } else {
+        Serial.println("peer not found");
+        addPeer(tmpAddress);  
+        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       }
+    } else {
+      Server.send(200, "text/plain", "This is esp gateway, can't register itself!");
     }
   }
   if(success) {
-    Server.send(200, "text/plain", "Good to go!");
+    Server.send(200, "text/plain", "Device registered!");
   } else {
     Server.send(400, "text/plain", "Invalid request params");
   }  
 }
 
-void updateReceiverAddress() {
+void updateESP32() {
   boolean success = false;
   if(Server.args() == 2) {
-    String hostAddr = Server.arg(0);
-    String taskValue = Server.arg(1);
+    String hostAddr = removeFromString(Server.arg(0), (char *)":");
+    String taskValue = removeFromString(Server.arg(1), (char *)":");
 
-    mac2int(hostAddr, tmpAddress);
+    stringToInt(hostAddr, tmpAddress);
+    Serial.printf("%s, %u\n", hostAddr, tmpAddress);
     if(Server.argName(0) == "host_addr" && tmpAddress == hostAddress) {
-      mac2int(taskValue, tmpAddress);
+      stringToInt(taskValue, tmpAddress);
       if(Server.argName(1) == "recv_addr" && tmpAddress != gatewayReceiverAddress) {
         deletePeer(gatewayReceiverAddress);
         std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(gatewayReceiverAddress));
@@ -187,10 +173,10 @@ void updateReceiverAddress() {
       success = true;
       String task = Server.argName(1);
       struct_message payload;
-      mac2int(hostAddr, payload.hostAddress);
+      payload.hostAddress = hostAddr;
       if(task == "recv_addr") {
         payload.task = UPDATE_RECEIVER_ADDR;
-        mac2int(taskValue, payload.hostAddress);
+        payload.receiverAddress = taskValue;
       } else if(task == "esp_interval") {
         Serial.println(hostAddr);
         Serial.printf("%u\n", payload.hostAddress);
@@ -203,14 +189,15 @@ void updateReceiverAddress() {
         payload.task = UPDATE_DEVICE_ID;
         payload.id = atoi(taskValue.c_str());
       }
-      mac2int(hostAddr, tmpAddress);
-      if(esp_now_is_peer_exist(tmpAddress)) {
-        Serial.println("found peer");
-      } else {
-        Serial.println("peer not found");
-        addPeer(tmpAddress);  
-      }
-      esp_err_t result = esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+      //stringToInt(hostAddr, tmpAddress);
+      //if(esp_now_is_peer_exist(tmpAddress)) {
+      //  Serial.println("found peer");
+      //} else {
+      //  Serial.println("peer not found");
+      //  addPeer(tmpAddress);  
+      //}
+      Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
+      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
       
     }
   }
@@ -353,8 +340,8 @@ void setup() {
   Server.enableCORS();
   Server.on("/moisture", moistureJson);
   Server.on("/moisture.json", moistureJson);
-  Server.on("/update_receiver_address", updateReceiverAddress);
-  Server.on("/add_receiver_address", addReceiverAddress);
+  Server.on("/update", updateESP32);
+  Server.on("/register", registerESP32);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());
@@ -363,8 +350,10 @@ void setup() {
     Serial.println(WiFi.channel());
     Serial.print("Wi-Fi SSID: ");
     Serial.println(WiFi.SSID());
-    mac2int(WiFi.macAddress(), hostAddress);
-    Serial.printf("host: %u\n", hostAddress);
+    hostMac = removeFromString(WiFi.macAddress(), (char *)":");
+    Serial.println(hostMac);
+    stringToInt(hostMac, hostAddress);
+    Serial.printf("host: %u, receiver: %u\n", hostAddress, gatewayReceiverAddress);
   }
   waitCount = 0;
   while (WiFi.status() != WL_CONNECTED && waitCount++ < 3) {

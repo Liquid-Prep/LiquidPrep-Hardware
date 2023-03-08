@@ -4,13 +4,23 @@
 #include <esp_now.h>
 #include "FS.h"
 
+#define FIRMWARE_VERSION  "0.2.3"
+#define MY_ROLE           ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
+#define RECEIVER_ROLE     ESP_NOW_ROLE_SLAVE              // set the role of the receiver
+#define WIFI_CHANNEL      1
+
+#define VAL(str) #str
+#define TOSTRING(str) VAL(str)
+
 enum Task {
   NO_TASK,
   UPDATE_RECEIVER_ADDR,
   UPDATE_WIFI_CHANNEL,
   UPDATE_DEVICE_NAME,
   UPDATE_DEVICE_ID,
-  UPDATE_ESP_INTERVAL
+  UPDATE_ESP_INTERVAL,
+  REGISTER_DEVICE,
+  RELATE_MESSAGE
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -18,6 +28,8 @@ Task str2enum(const std::string& str) {
   else if(str == "UPDATE_DEVICE_NAME") return UPDATE_DEVICE_NAME;
   else if(str == "UPDATE_DEVICE_ID") return UPDATE_DEVICE_ID;
   else if(str == "UPDATE_ESP_INTERVAL") return UPDATE_ESP_INTERVAL;
+  else if(str == "REGISTER_DEVICE") return REGISTER_DEVICE;
+  else if(str == "RELATE_MESSAGE") return RELATE_MESSAGE;
   else return NO_TASK;
 }
 
@@ -29,14 +41,16 @@ uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please up
 esp_now_peer_info_t peerInfo;
 
 typedef struct struct_message {  
-  int currPointer;
   int id;
   String name;
   String moisture;
   unsigned long timestamp;
   int espInterval;
-  uint8_t receiverAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  String receiverAddress;
+  String hostAddress;
+  // TODO: will try to use uint8_t over String
+  //uint8_t receiverAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  //uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   int task;
 } struct_message;
 struct_message myData;
@@ -80,7 +94,23 @@ boolean deletePeer(uint8_t *macAddress) {
     return true;
   }
 }
-
+String removeFromString(String mac, char *charsToRemove) {
+  std::string str = mac.c_str();
+  for(unsigned int i = 0; i < strlen(charsToRemove); ++i ) {
+    str.erase( remove(str.begin(), str.end(), charsToRemove[i]), str.end() );
+  }
+  return str.c_str();  
+}
+void stringToInt(String mac, uint8_t *output) {
+  int str_len = mac.length() + 1;
+  char char_array[str_len];
+  mac.toCharArray(char_array, str_len);
+  char *ptr = char_array;
+  uint64_t addr = strtoull(ptr, &ptr, 16);
+  for ( uint8_t i = 0; i < 6; i++ ) {
+    output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
+  }  
+}
 uint8_t* mac2int(String mac, uint8_t *output) {
   std::string blank = "";
   std::string colon = ":";

@@ -2,3 +2,12 @@ http://192.168.86.48/update_receiver_address?host_addr=78:21:84:8C:58:00&recv_ad
 http://192.168.86.48/add_receiver_address?host_addr=78:21:84:8C:89:FC&recv_addr=78:21:84:8C:58:00
 http://192.168.86.48/update_receiver_address?host_addr=40:91:51:9F:30:AC&esp_interval=8000
 http://192.168.86.48/update_receiver_address?host_addr=AC:67:B2:38:E1:AC&esp_interval=8000
+
+zone_1
+http://192.168.86.48/update?host_addr=40:91:51:9F:30:AC&esp_interval=8000
+zone_2
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=8000
+
+http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
+
+https://forum.arduino.cc/t/conversion-of-mac-addresses-string-to-uint8-t-array-for-esp-now/857512/3
