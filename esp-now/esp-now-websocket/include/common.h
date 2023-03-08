@@ -43,6 +43,11 @@ uint8_t gatewayReceiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please 
 uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
 uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+String gatewayMac = "7821848C89FC";
+String hostMac = "";                // mac address of this device
+String receiverMac = "7821848C89FC";            // mac address of receiver
+String senderMac = "";              // mac address of sender
+
 esp_now_peer_info_t peerInfo;
 
 typedef struct struct_message {  
@@ -52,6 +57,7 @@ typedef struct struct_message {
   unsigned long timestamp;
   int espInterval;
   String receiverAddress;
+  String senderAddress;
   String hostAddress;
   String msg;
   // TODO: will try to use uint8_t over String
@@ -59,7 +65,6 @@ typedef struct struct_message {
   //uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   int task;
 } struct_message;
-struct_message myData;
 
 // Common utility functions
 int32_t getWiFiChannel(const char *ssid) {

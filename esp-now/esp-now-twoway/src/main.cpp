@@ -6,51 +6,18 @@
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
 String DEVICE_NAME = "ZONE_1";       // set device name
 
-//uint8_t output[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-//uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-//uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-//uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
-
-//struct_message myData;
-
-String hostMac = "";
-String receiverMac = "";
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
 int waterValue = 1803; // 1779;  // enter your water value here
-int SensorPin = 32;
+int sensorPin = 32;
 int soilMoistureValue = 0;
 float soilmoisturepercent = 0;
 const char* fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
 int espInterval=6000; //interval for reading data
 
-//boolean addPeer(uint8_t *macAddress) {
-//  // Register peer
-//  memcpy(peerInfo.peer_addr, macAddress, 6);
-//  peerInfo.channel = 0;
-//  peerInfo.encrypt = false;
-//  // Add peer
-//  esp_err_t ret = esp_now_add_peer(&peerInfo);
-//  if(ret != ESP_OK) {
-//    Serial.println("Failed to add peer, error: " + ret);
-//    return false;
-//  } else {
-//    return true;
-//  }
-//}
-//boolean deletePeer(uint8_t *macAddress) {
-//  esp_err_t ret = esp_now_del_peer(macAddress);
-//  if(ret != ESP_OK) {
-//    Serial.println("Failed to delete peer, error: " + ret);
-//    return false;
-//  } else {
-//    return true;
-//  }
-//}
-
 void calculate() {
-  int val = analogRead(SensorPin);  // connect sensor to Analog pin
+  int val = analogRead(sensorPin);  // connect sensor to Analog pin
 
   // soilmoisturepercent = map(soilMoistureValue, airValue, waterValue, 0, 100);
   int valueMinDiff = abs(val - airValue);
@@ -73,6 +40,28 @@ void moistureJson() {
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
+String saveJson() {
+  String msg = "";
+  File configFile = SPIFFS.open("/config.json", "w+"); 
+  if(configFile) {
+    doc["deviceId"] = DEVICE_ID;
+    doc["deviceName"] = DEVICE_NAME;
+    doc["airValue"] = airValue;
+    doc["waterValue"] = waterValue;
+    doc["sensorPin"] = sensorPin;
+    doc["espInterval"] = espInterval;
+    doc["receiverMac"] = receiverMac;
+    doc["senderMac"] = senderMac;
+
+    serializeJson(doc, configFile);
+    msg = "Updated config successfully!";
+    configFile.close();
+  } else {
+    msg = "Failed to open config file for writing!";
+    Serial.println(msg);
+  }
+  return msg;
+}
 void resetPayload(struct_message payload) {
   payload = struct_message();
   payload.id = DEVICE_ID;
@@ -83,6 +72,19 @@ void resetPayloadTask(struct_message payload, int task, String msg="") {
   resetPayload(payload);
   payload.task = task;
   payload.msg = msg;          
+}
+void updateDeviceReceiver(struct_message payload) {
+  deletePeer(receiverAddress);
+  receiverMac = payload.receiverAddress;
+  stringToInt(receiverMac, receiverAddress);
+  addPeer(receiverAddress);
+  Serial.printf("registering...%s, %d", payload.name, payload.id);
+  DEVICE_ID = payload.id;
+  DEVICE_NAME = payload.name;
+  saveJson();
+  // reset payload
+  resetPayloadTask(payload, CONNECT_WITH_ME);
+  esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
 }
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -111,9 +113,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           stringToInt(receiverMac, receiverAddress);
           addPeer(receiverAddress);
           Serial.printf("registering...%s, %d", payload.name, payload.id);
-          // TODO: store this info in SPIFFS
           DEVICE_ID = payload.id;
           DEVICE_NAME = payload.name;
+          saveJson();
           // reset payload
           resetPayloadTask(payload, CONNECT_WITH_ME);
           esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
@@ -124,6 +126,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           deletePeer(receiverAddress);
           receiverMac = payload.receiverAddress;
           stringToInt(receiverMac, receiverAddress);
+          saveJson();
           //std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
           addPeer(receiverAddress);
           Serial.printf("connect with me...%s, %d", payload.name, payload.id);
@@ -137,9 +140,11 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         }
       break;
       case CONNECT_WITH_ME:
-        Serial.printf("Connecting with %s sender\n", payload.name);
-        stringToInt(payload.hostAddress, senderAddress);
+        Serial.printf("Connecting with %s sender %s\n", payload.name, payload.senderAddress);
+        senderMac = payload.senderAddress;
+        stringToInt(senderMac, senderAddress);
         addPeer(senderAddress);
+        saveJson();
         resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
         esp_now_send(senderAddress, (uint8_t *) &payload, sizeof(payload));
       break;
@@ -153,12 +158,19 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       case UPDATE_WIFI_CHANNEL:
       break;
       case UPDATE_DEVICE_NAME:
+        Serial.printf("update device name: %s\n", payload.name);
+        DEVICE_NAME = payload.name;
+        saveJson();
       break;
       case UPDATE_DEVICE_ID:
+        Serial.printf("update device id: %d\n", payload.id);
+        DEVICE_ID = payload.id;
+        saveJson();
       break;
       case UPDATE_ESP_INTERVAL:
-        Serial.println("update esp_interval");
+        Serial.printf("update esp_interval: %d\n", payload.espInterval);
         espInterval = payload.espInterval;
+        saveJson();
       break;
       default:
         Serial.println("Nothing to do.");
@@ -167,20 +179,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   //} else {
   //  esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
   //}
-}
-
-String saveJson() {
-  String msg = "";
-  File configFile = SPIFFS.open("/config.json", "w+"); 
-  if(configFile) {
-    serializeJson(doc, configFile);
-    msg = "Updated config successfully!";
-    configFile.close();
-  } else {
-    msg = "Failed to open config file for writing!";
-    Serial.println(msg);
-  }
-  return msg;
 }
 
 //void dataReceived(uint8_t *senderMac, uint8_t *data, uint8_t dataLength) {
@@ -204,17 +202,47 @@ String saveJson() {
 void setup() {
   int waitCount = 0;
   delay(1000);
+  // Init Serial Monitor
+  Serial.begin(115200);
+
   while (!SPIFFS.begin(true) && waitCount++ < 3) {
     delay(1000);
   }
-  // Init Serial Monitor
-  Serial.begin(115200);
+  File config = SPIFFS.open("/config.json", "r");
+  if(config) {
+    DeserializationError error = deserializeJson(doc, config);
+    if(error) {
+      saveJson();
+      Serial.println(F("Failed to read file, using default configuration"));
+      Serial.println(error.c_str());
+    } else {
+      JsonObject obj = doc.as<JsonObject>();
+      airValue = doc["airValue"];
+      waterValue = doc["waterValue"];
+      sensorPin = doc["sensorPin"];
+      DEVICE_ID = obj["deviceId"];
+      DEVICE_NAME = doc["deviceName"].as<String>();;
+      sensorPin = doc["sensorPin"];
+      espInterval = doc["espInterval"];
+      receiverMac = doc["receiverMac"].as<String>();
+      senderMac = doc["senderMac"].as<String>();
+      stringToInt(receiverMac, receiverAddress);
+      stringToInt(senderMac, senderAddress);
+      config.close();
+    }
+  } else {
+    saveJson();
+  }
+
   // Set device as a Wi-Fi Station
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());
   hostMac = removeFromString(WiFi.macAddress(), (char *)":");
   stringToInt(hostMac, hostAddress);
-  Serial.printf("My MAC address is: %s, %u\n", hostMac, hostAddress);
+  stringToInt(receiverMac, receiverAddress);
+  Serial.printf("My MAC address is: %s, %u, %u\n", hostMac, hostAddress, receiverAddress);
+  Serial.printf("sender: %s, %u, receiver: %s, %u\n", senderMac, senderAddress, receiverMac, receiverAddress);
+
   Serial.print("Wi-Fi Channel: ");
   Serial.println(WiFi.channel());
 

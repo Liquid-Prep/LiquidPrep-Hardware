@@ -359,6 +359,8 @@ void setup() {
     Serial.println(hostMac);
     stringToInt(hostMac, hostAddress);
     Serial.printf("host: %u, receiver: %u\n", hostAddress, gatewayReceiverAddress);
+    stringToInt(gatewayMac, hostAddress);
+    Serial.printf("host: %u, receiver: %u\n", hostAddress, gatewayReceiverAddress);
   }
   waitCount = 0;
   while (WiFi.status() != WL_CONNECTED && waitCount++ < 3) {
