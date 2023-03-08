@@ -20,7 +20,9 @@ enum Task {
   UPDATE_DEVICE_ID,
   UPDATE_ESP_INTERVAL,
   REGISTER_DEVICE,
-  RELATE_MESSAGE
+  RELATE_MESSAGE,
+  CONNECT_WITH_ME,
+  MESSAGE_ONLY
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -30,6 +32,8 @@ Task str2enum(const std::string& str) {
   else if(str == "UPDATE_ESP_INTERVAL") return UPDATE_ESP_INTERVAL;
   else if(str == "REGISTER_DEVICE") return REGISTER_DEVICE;
   else if(str == "RELATE_MESSAGE") return RELATE_MESSAGE;
+  else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
+  else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
   else return NO_TASK;
 }
 
@@ -37,6 +41,7 @@ uint8_t tmpAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t gatewayReceiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
 uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
+uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 esp_now_peer_info_t peerInfo;
 
@@ -48,6 +53,7 @@ typedef struct struct_message {
   int espInterval;
   String receiverAddress;
   String hostAddress;
+  String msg;
   // TODO: will try to use uint8_t over String
   //uint8_t receiverAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   //uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};

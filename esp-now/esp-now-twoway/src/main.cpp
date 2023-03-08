@@ -13,8 +13,6 @@ String DEVICE_NAME = "ZONE_1";       // set device name
 
 //struct_message myData;
 
-struct_message payload;
-
 String hostMac = "";
 String receiverMac = "";
 String moistureLevel = "";
@@ -75,13 +73,25 @@ void moistureJson() {
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
+void resetPayload(struct_message payload) {
+  payload = struct_message();
+  payload.id = DEVICE_ID;
+  payload.name = DEVICE_NAME;
+  payload.hostAddress = hostMac;
+}
+void resetPayloadTask(struct_message payload, int task, String msg="") {
+  resetPayload(payload);
+  payload.task = task;
+  payload.msg = msg;          
+}
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.printf("\r\nLast Packet Send Status: %u\t", receiverAddress);
+  Serial.printf("\r\nLast Packet Send Status: %u, %s\t", receiverAddress, hostMac);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  struct_message payload;
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Incoming: ");
   Serial.println(len);
@@ -91,9 +101,24 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.printf("%s, %s, %u\n", payload.hostAddress, hostMac, hostAddress);
   Serial.println("------");
   //mac2int(payload.hostAddress, tmpAddress);
-  if(payload.hostAddress == hostMac) {
-    Serial.println("updating...");
+  //if(payload.hostAddress == hostMac) {
+    Serial.println("processing...");
     switch(payload.task) {
+      case REGISTER_DEVICE:
+        if(payload.receiverAddress != receiverMac) {
+          deletePeer(receiverAddress);
+          receiverMac = payload.receiverAddress;
+          stringToInt(receiverMac, receiverAddress);
+          addPeer(receiverAddress);
+          Serial.printf("registering...%s, %d", payload.name, payload.id);
+          // TODO: store this info in SPIFFS
+          DEVICE_ID = payload.id;
+          DEVICE_NAME = payload.name;
+          // reset payload
+          resetPayloadTask(payload, CONNECT_WITH_ME);
+          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+        }
+      break;
       case UPDATE_RECEIVER_ADDR:
         if(payload.receiverAddress != receiverMac) {
           deletePeer(receiverAddress);
@@ -101,10 +126,29 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           stringToInt(receiverMac, receiverAddress);
           //std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
           addPeer(receiverAddress);
+          Serial.printf("connect with me...%s, %d", payload.name, payload.id);
+          // reset payload
+          payload = struct_message();
+          payload.id = DEVICE_ID;
+          payload.name = DEVICE_NAME;
+          payload.hostAddress = hostMac;
+          payload.task = CONNECT_WITH_ME;          
+          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
         }
       break;
+      case CONNECT_WITH_ME:
+        Serial.printf("Connecting with %s sender\n", payload.name);
+        stringToInt(payload.hostAddress, senderAddress);
+        addPeer(senderAddress);
+        resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
+        esp_now_send(senderAddress, (uint8_t *) &payload, sizeof(payload));
+      break;
       case RELATE_MESSAGE:
+        Serial.printf("Relate %s message\n", payload.name);
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+      break;
+      case MESSAGE_ONLY:
+        Serial.printf("fyi: %s\n", payload.msg);
       break;
       case UPDATE_WIFI_CHANNEL:
       break;
@@ -120,9 +164,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         Serial.println("Nothing to do.");
       break;
     }
-  } else {
-    esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-  }
+  //} else {
+  //  esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+  //}
 }
 
 String saveJson() {
@@ -167,7 +211,6 @@ void setup() {
   Serial.begin(115200);
   // Set device as a Wi-Fi Station
   Serial.println("Initializing...");
-  Serial.printf("Device Name: %s\nDevice Id: %d\n", myData.name, myData.id);
   Serial.println("My MAC address is: " + WiFi.macAddress());
   hostMac = removeFromString(WiFi.macAddress(), (char *)":");
   stringToInt(hostMac, hostAddress);
@@ -205,17 +248,18 @@ void setup() {
 void loop() {
   calculate();
   // Set values to send
-  myData.id = DEVICE_ID;
-  myData.name = DEVICE_NAME;
-  Serial.printf("info: %d, %s, %d, %s\n", espInterval, moistureLevel, myData.id, myData.name);
-  if(myData.id > 1) {
+  struct_message payload;
+  payload.id = DEVICE_ID;
+  payload.name = DEVICE_NAME;
+  Serial.printf("info: %d, %s, %d, %s\n", espInterval, moistureLevel, payload.id, payload.name);
+  if(payload.id > 1) {
     // TODO:  need a better way to identify leader vs workers
-    myData.task = RELATE_MESSAGE;
+    payload.task = RELATE_MESSAGE;
   } else {
-    myData.task = NO_TASK;
+    payload.task = NO_TASK;
   }
-  myData.moisture = moistureLevel;
-  esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &myData, sizeof(myData));
+  payload.moisture = moistureLevel;
+  esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
 
   delay(espInterval);
 }

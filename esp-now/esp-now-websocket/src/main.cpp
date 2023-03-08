@@ -4,8 +4,9 @@
 #include <WebSocketsClient.h>
 #include <common.h>
 
-#define DEVICE_ID         0             // set device id
-#define DEVICE_NAME       "GATEWAY"      // set device name
+// TODO:  need to store device configuration in SPIFFS
+int DEVICE_ID = 0;                   // set device id, 0 = ESP32 Gateway that will relate all messages to edge gateway via websocket
+String DEVICE_NAME = "GATEWAY";       // set device name
 
 //uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 //uint8_t receiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
@@ -71,7 +72,7 @@ void calculate() {
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success\n" : "Delivery Fail\n");
 }
 
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
@@ -120,12 +121,16 @@ String moistureJson() {
 void registerESP32() {
   struct_message payload;
   boolean success = false;  
-  if(Server.args() == 2 && Server.argName(1) == "recv_addr") {
+  if(Server.args() == 4 && Server.argName(0) == "host_addr" && Server.argName(1) == "recv_addr" && Server.argName(2) == "device_id" && Server.argName(3) == "device_name") {
     String hostAddr = removeFromString(Server.arg(0), (char *)":");
     String taskValue = removeFromString(Server.arg(1), (char *)":");
+    String deviceId = removeFromString(Server.arg(2), (char *)":");
+    String deviceName = removeFromString(Server.arg(3), (char *)":");
     if(hostAddr != hostMac) {
       success = true;
-      payload.task = UPDATE_RECEIVER_ADDR;
+      payload.id = atoi(deviceId.c_str());
+      payload.name = deviceName;
+      payload.task = REGISTER_DEVICE;
       payload.hostAddress = hostAddr;
       payload.receiverAddress = taskValue;
       stringToInt(hostAddr, tmpAddress);
@@ -134,8 +139,8 @@ void registerESP32() {
       } else {
         Serial.println("peer not found");
         addPeer(tmpAddress);  
-        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       }
+      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
     } else {
       Server.send(200, "text/plain", "This is esp gateway, can't register itself!");
     }
@@ -143,7 +148,7 @@ void registerESP32() {
   if(success) {
     Server.send(200, "text/plain", "Device registered!");
   } else {
-    Server.send(400, "text/plain", "Invalid request params");
+    Server.send(400, "text/plain", "Invalid request params, correct params: host_addr=...&recv_addr=...&device_id=...&device_name=...");
   }  
 }
 
