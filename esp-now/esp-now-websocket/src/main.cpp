@@ -23,7 +23,6 @@ String DEVICE_NAME = "GATEWAY";       // set device name
 //struct_message myData;
 //esp_now_peer_info_t peerInfo;
 
-String hostMac = "";
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -69,6 +68,14 @@ void calculate() {
   //pCharacteristic->setValue(str);  // push the value via bluetooth
 }
 
+void sendData(String data) {
+  if (data.length() > 0) {
+    Serial.println("Sending: " + data);
+    webSocketClient.sendTXT(data);//send sensor data to websocket server
+  } else {
+  }    
+}
+
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
@@ -83,8 +90,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.println(len);
   Serial.printf("%u\n", mac);
   Serial.println(payload.moisture + ", " + payload.name + ", " + payload.task);
-
   Serial.println();
+  String response = "{\"name\": " + payload.name + "," + "\"moisture\": " + payload.moisture + "}";
+  sendData(response);
 }
 
 //boolean addPeer(uint8_t *macAddress) {
@@ -380,14 +388,6 @@ void setup() {
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_register_send_cb(OnDataSent);
   addPeer(gatewayReceiverAddress);  
-}
-
-void sendData(String data) {
-  if (data.length() > 0) {
-    Serial.println("Sending: " + data);
-    webSocketClient.sendTXT(data);//send sensor data to websocket server
-  } else {
-  }    
 }
 
 void loop() {
