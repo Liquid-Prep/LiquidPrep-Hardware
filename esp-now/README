@@ -3,7 +3,7 @@
 The following two topologies uses ESP-NOW communication protocol to relate sensor data to the edge gateway.
 
 ## Many-To-One
-![Alt text](https://github.com/Liquid-Prep/LiquidPrep-Hardware/edit/esp-now-websocket/esp-now/many-to-one.png?raw=true "Many To One") 
+![Alt text](many-to-one.png?raw=true "Many To One") 
 
 ## One-To-One
-![Alt text](https://github.com/Liquid-Prep/LiquidPrep-Hardware/edit/esp-now-websocket/esp-now/one-to-one.png?raw=true "One To One") 
+![Alt text](one-to-one.png?raw=true "One To One") 
