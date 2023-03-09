@@ -91,7 +91,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.printf("%u\n", mac);
   Serial.println(payload.moisture + ", " + payload.name + ", " + payload.task);
   Serial.println();
-  String response = "{\"name\": " + payload.name + "," + "\"moisture\": " + payload.moisture + "}";
+  String response = "{\"name\": \"" + payload.name + "\"," + "\"moisture\": " + payload.moisture + "}";
   sendData(response);
 }
 

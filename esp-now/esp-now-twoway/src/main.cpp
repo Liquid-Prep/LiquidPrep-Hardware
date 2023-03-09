@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_1";       // set device name
+String DEVICE_NAME = "ZONE_3";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
