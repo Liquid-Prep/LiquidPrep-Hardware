@@ -91,7 +91,9 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.printf("\r\nLast Packet Send Status: %u, %s\t", receiverAddress, hostMac);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
-
+void connectWithMe(String sender) {
+  
+}
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload;
   memcpy(&payload, incomingData, sizeof(payload));

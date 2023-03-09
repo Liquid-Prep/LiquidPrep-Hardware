@@ -19,6 +19,7 @@ enum Task {
   UPDATE_DEVICE_NAME,
   UPDATE_DEVICE_ID,
   UPDATE_ESP_INTERVAL,
+  UPDATE_SENDER_ADDR,
   REGISTER_DEVICE,
   RELATE_MESSAGE,
   CONNECT_WITH_ME,
@@ -26,6 +27,7 @@ enum Task {
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
+  else if(str == "UPDATE_SENDER_ADDR") return UPDATE_SENDER_ADDR;
   else if(str == "UPDATE_WIFI_CHANNEL") return UPDATE_WIFI_CHANNEL;
   else if(str == "UPDATE_DEVICE_NAME") return UPDATE_DEVICE_NAME;
   else if(str == "UPDATE_DEVICE_ID") return UPDATE_DEVICE_ID;
@@ -50,19 +52,18 @@ String senderMac = "";              // mac address of sender
 
 esp_now_peer_info_t peerInfo;
 
+  // TODO: will try to use uint8_t over String
+  //uint8_t receiverAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  //uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 typedef struct struct_message {  
   int id;
   String name;
   String moisture;
-  unsigned long timestamp;
   int espInterval;
   String receiverAddress;
   String senderAddress;
   String hostAddress;
   String msg;
-  // TODO: will try to use uint8_t over String
-  //uint8_t receiverAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-  //uint8_t hostAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
   int task;
 } struct_message;
 

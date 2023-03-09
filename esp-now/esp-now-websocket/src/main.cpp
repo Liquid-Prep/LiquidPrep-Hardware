@@ -82,45 +82,24 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success\n" : "Delivery Fail\n");
 }
 
+void connectWithMe() {
+  
+}
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload;
 
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.println(len);
-  Serial.printf("%u\n", mac);
-  Serial.println(payload.moisture + ", " + payload.name + ", " + payload.task);
+  Serial.printf("%d, %u\n", len, mac);
+  Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
   Serial.println();
-  String response = "{\"name\": \"" + payload.name + "\"," + "\"moisture\": " + payload.moisture + "}";
+  String response = "{\"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\"," + "\"moisture\": " + payload.moisture + "}";
   sendData(response);
 }
 
-//boolean addPeer(uint8_t *macAddress) {
-//  // Register peer
-//  memcpy(peerInfo.peer_addr, macAddress, 6);
-//  peerInfo.channel = 0;
-//  peerInfo.encrypt = false;
-//  // Add peer
-//  esp_err_t ret = esp_now_add_peer(&peerInfo);
-//  if(ret != ESP_OK) {
-//    Serial.println("Failed to add peer, error: " + ret);
-//    return false;
-//  } else {
-//    return true;
-//  }
-//}
-//boolean deletePeer(uint8_t *macAddress) {
-//  esp_err_t ret = esp_now_del_peer(macAddress);
-//  if(ret != ESP_OK) {
-//    Serial.println("Failed to delete peer, error: " + ret);
-//    return false;
-//  } else {
-//    return true;
-//  }
-//}
 String moistureJson() {
   calculate();
-  String response = "{\"moisture\": " + moistureLevel + "}";
+  String response = "{\"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\"," + "\"moisture\": " + moistureLevel + "}";
   Server.send(200, "text/json", response);
   Serial.printf("sensor reading: %s\n", moistureLevel);
   return response;
@@ -283,8 +262,8 @@ String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
   wsport = doc["wsport"] = args.arg("wsport").toInt();
 
   String msg = saveJson();
-  wsconnect();
   aux["results"].as<AutoConnectText>().value = msg;
+  ESP.restart();
   return String();
 }
 
