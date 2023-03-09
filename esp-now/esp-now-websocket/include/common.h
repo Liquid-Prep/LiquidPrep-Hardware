@@ -59,7 +59,7 @@ typedef struct struct_message {
   int id;
   String name;
   String moisture;
-  int espInterval;
+  int espInterval = 6000;
   String receiverAddress;
   String senderAddress;
   String hostAddress;
@@ -123,29 +123,13 @@ void stringToInt(String mac, uint8_t *output) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
 }
-uint8_t* mac2int(String mac, uint8_t *output) {
-  std::string blank = "";
-  std::string colon = ":";
-  std::string s = mac.c_str();
-  size_t pos;
-
-  while ((pos = s.find(colon)) != std::string::npos) {
-    s = s.replace(pos, 1, blank);
-  }
-  char dummy[3] = {0};
-  int j = 0;
-  uint8_t num = 0;
-  uint8_t *pout;
-  char *ptr;
-  for(int k=0;k<6;k++) {
-    for(int i=0;i<2;i++) {
-      dummy[i] = s[i+j];
+void connectWithMe(String sender, int id) {
+  if(id == 1) {
+    stringToInt(sender, tmpAddress);
+    if(!esp_now_is_peer_exist(tmpAddress)) {
+      deletePeer(senderAddress);
+      stringToInt(sender, senderAddress);
+      addPeer(senderAddress);
     }
-    num = strtol(dummy, &ptr, 16);
-    j=j+2;
-    //printf("0x%2x\n", num);
-    output[k] = num;
   }
-  Serial.printf("%u\n", output);
-  return output;
 }

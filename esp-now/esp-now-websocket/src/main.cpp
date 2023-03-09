@@ -82,9 +82,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success\n" : "Delivery Fail\n");
 }
 
-void connectWithMe() {
-  
-}
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload;
 
@@ -106,7 +103,7 @@ String moistureJson() {
 }
 
 void registerESP32() {
-  struct_message payload;
+  struct_message payload = struct_message();
   boolean success = false;  
   if(Server.args() == 4 && Server.argName(0) == "host_addr" && Server.argName(1) == "recv_addr" && Server.argName(2) == "device_id" && Server.argName(3) == "device_name") {
     String hostAddr = removeFromString(Server.arg(0), (char *)":");

@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_3";       // set device name
+String DEVICE_NAME = "ZONE_1";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -91,17 +91,13 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.printf("\r\nLast Packet Send Status: %u, %s\t", receiverAddress, hostMac);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
-void connectWithMe(String sender) {
-  
-}
+
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload;
   memcpy(&payload, incomingData, sizeof(payload));
-  Serial.print("Incoming: ");
+  Serial.print("Bytes received: ");
   Serial.println(len);
-  Serial.printf("%u\n", mac);
-  Serial.println(payload.task);
-  Serial.println(payload.espInterval);
+  Serial.printf("%d, %u, %d, %d\n", len, mac, payload.task, payload.espInterval);
   Serial.printf("%s, %s, %u\n", payload.hostAddress, hostMac, hostAddress);
   Serial.println("------");
   //mac2int(payload.hostAddress, tmpAddress);
@@ -119,8 +115,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           DEVICE_NAME = payload.name;
           saveJson();
           // reset payload
-          resetPayloadTask(payload, CONNECT_WITH_ME);
-          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+          //resetPayloadTask(payload, CONNECT_WITH_ME);
+          //esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
         }
       break;
       case UPDATE_RECEIVER_ADDR:
@@ -133,12 +129,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           addPeer(receiverAddress);
           Serial.printf("connect with me...%s, %d", payload.name, payload.id);
           // reset payload
-          payload = struct_message();
-          payload.id = DEVICE_ID;
-          payload.name = DEVICE_NAME;
-          payload.hostAddress = hostMac;
-          payload.task = CONNECT_WITH_ME;          
-          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+          //payload = struct_message();
+          //payload.id = DEVICE_ID;
+          //payload.name = DEVICE_NAME;
+          //payload.hostAddress = hostMac;
+          //payload.task = CONNECT_WITH_ME;          
+          //esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
         }
       break;
       case CONNECT_WITH_ME:
@@ -152,6 +148,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
+        connectWithMe(payload.senderAddress, payload.id);
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case MESSAGE_ONLY:
@@ -281,6 +278,7 @@ void loop() {
   struct_message payload;
   payload.id = DEVICE_ID;
   payload.name = DEVICE_NAME;
+  payload.senderAddress = senderMac;
   Serial.printf("info: %d, %s, %d, %s\n", espInterval, moistureLevel, payload.id, payload.name);
   if(payload.id > 1) {
     // TODO:  need a better way to identify leader vs workers
