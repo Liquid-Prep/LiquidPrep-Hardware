@@ -123,13 +123,17 @@ void stringToInt(String mac, uint8_t *output) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
 }
-void connectWithMe(String sender, int id) {
-  if(id == 1) {
+void connectWithMe(struct_message payload, String host) {
+  if(payload.id > 0) {
+    String sender = payload.senderAddress;
     stringToInt(sender, tmpAddress);
     if(!esp_now_is_peer_exist(tmpAddress)) {
       deletePeer(senderAddress);
       stringToInt(sender, senderAddress);
       addPeer(senderAddress);
+      Serial.printf("Connecting %s to %s\n", payload.name, host);
     }
+  } else if(payload.id == 0 && senderMac.length() == 0) {
+    senderMac = gatewayMac;
   }
 }

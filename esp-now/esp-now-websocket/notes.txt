@@ -8,6 +8,7 @@ http://192.168.86.48/update?host_addr=40:91:51:9F:30:AC&esp_interval=8000
 zone_2 = 78:21:84:8C:58:00
 http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=8000
 http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=8000
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&device_name=ZONE_2
 
 http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
 

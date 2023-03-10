@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_1";       // set device name
+String DEVICE_NAME = "ZONE_3";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -88,21 +88,24 @@ void updateDeviceReceiver(struct_message payload) {
 }
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.printf("\r\nLast Packet Send Status: %u, %s\t", receiverAddress, hostMac);
+  Serial.printf("Last Packet Send Status: %u, %s\t", receiverAddress, hostMac);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Serial.println("");
 }
 
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
-  struct_message payload;
+  struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.println(len);
-  Serial.printf("%d, %u, %d, %d\n", len, mac, payload.task, payload.espInterval);
-  Serial.printf("%s, %s, %u\n", payload.hostAddress, hostMac, hostAddress);
+  Serial.printf("%d from %s, %d, %d, %d\n", len, payload.name, payload.task, payload.espInterval, payload.moisture);
+  Serial.printf("=> %s, %s, %s\n", payload.hostAddress, hostMac, payloader.senderAddress);
   Serial.println("------");
-  //mac2int(payload.hostAddress, tmpAddress);
-  //if(payload.hostAddress == hostMac) {
+  if(payload.hostAddress == hostMac) {
     Serial.println("processing...");
+    if(payload.senderAddress.length() > 0) {
+      connectWithMe(payload, DEVICE_NAME);
+      senderMac = payload.senderAddress;
+    }
     switch(payload.task) {
       case REGISTER_DEVICE:
         if(payload.receiverAddress != receiverMac) {
@@ -148,7 +151,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
-        connectWithMe(payload.senderAddress, payload.id);
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case MESSAGE_ONLY:
@@ -175,9 +177,11 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         Serial.println("Nothing to do.");
       break;
     }
-  //} else {
-  //  esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-  //}
+  } else {
+    Serial.printf("send downstream to %s\n", senderMac);
+    stringToInt(senderMac, tmpAddress);
+    esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+  }
 }
 
 //void dataReceived(uint8_t *senderMac, uint8_t *data, uint8_t dataLength) {
@@ -221,7 +225,6 @@ void setup() {
       sensorPin = doc["sensorPin"];
       DEVICE_ID = obj["deviceId"];
       DEVICE_NAME = doc["deviceName"].as<String>();;
-      sensorPin = doc["sensorPin"];
       espInterval = doc["espInterval"];
       receiverMac = doc["receiverMac"].as<String>();
       senderMac = doc["senderMac"].as<String>();
@@ -232,7 +235,7 @@ void setup() {
   } else {
     saveJson();
   }
-
+Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());
@@ -275,11 +278,12 @@ void setup() {
 void loop() {
   calculate();
   // Set values to send
-  struct_message payload;
+  struct_message payload = struct_message();
   payload.id = DEVICE_ID;
   payload.name = DEVICE_NAME;
-  payload.senderAddress = senderMac;
-  Serial.printf("info: %d, %s, %d, %s\n", espInterval, moistureLevel, payload.id, payload.name);
+  payload.hostAddress = receiverMac;
+  payload.senderAddress = hostMac;
+  Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, hostMac);
   if(payload.id > 1) {
     // TODO:  need a better way to identify leader vs workers
     payload.task = RELATE_MESSAGE;

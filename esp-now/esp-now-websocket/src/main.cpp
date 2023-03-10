@@ -161,14 +161,14 @@ void updateESP32() {
     } else {
       success = true;
       String task = Server.argName(1);
-      struct_message payload;
+      struct_message payload = struct_message();
       payload.hostAddress = hostAddr;
       if(task == "recv_addr") {
         payload.task = UPDATE_RECEIVER_ADDR;
         payload.receiverAddress = taskValue;
       } else if(task == "esp_interval") {
         Serial.println(hostAddr);
-        Serial.printf("%u\n", payload.hostAddress);
+        Serial.printf("%s\n", payload.hostAddress);
         payload.task = UPDATE_ESP_INTERVAL;
         payload.espInterval = atoi(taskValue.c_str());
       } else if(task == "device_name") {
