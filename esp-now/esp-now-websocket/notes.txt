@@ -17,5 +17,11 @@ https://forum.arduino.cc/t/conversion-of-mac-addresses-string-to-uint8-t-array-f
 
 zone_1  40:91:51:9F:30:AC
 zone_2  78:21:84:8C:58:00
+http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC&device_id=2&device_name=Zone_2
+http://192.168.86.48/connect_gateways?sender_addr=78:21:84:8C:58:00
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
+
 ZONE_3  AC:67:B2:38:E1:AC
+http://192.168.86.48/register?host_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:8C:58:00&device_id=3&device_name=Zone_3
+
 LORA    78:21:84:9F:2B:98

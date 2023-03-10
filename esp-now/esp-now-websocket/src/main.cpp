@@ -90,13 +90,13 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.printf("%d, %u\n", len, mac);
   Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
   Serial.println();
-  String response = "{\"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\"," + "\"moisture\": " + payload.moisture + "}";
+  String response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
   sendData(response);
 }
 
 String moistureJson() {
   calculate();
-  String response = "{\"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\"," + "\"moisture\": " + moistureLevel + "}";
+  String response = "{\"mac\": \"" + hostMac + "\", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"moisture\": " + moistureLevel + "}";
   Server.send(200, "text/json", response);
   Serial.printf("sensor reading: %s\n", moistureLevel);
   return response;
@@ -135,7 +135,55 @@ void registerESP32() {
     Server.send(400, "text/plain", "Invalid request params, correct params: host_addr=...&recv_addr=...&device_id=...&device_name=...");
   }  
 }
+void connectGateways() {
+  boolean success = false;
+  if(Server.args() == 1 && Server.argName(0) == "sender_addr") {
+    String senderAddr = removeFromString(Server.arg(0), (char *)":");
+    stringToInt(receiverMac, receiverAddress);
+    deletePeer(receiverAddress);
+    receiverMac = senderAddr;
+    stringToInt(receiverMac, receiverAddress);
+    addPeer(receiverAddress);
+    // TODO: savejson
 
+    struct_message payload = struct_message();
+    payload.task = MESSAGE_ONLY;
+    payload.hostAddress = receiverMac;
+    payload.msg = "gateways are connected!";
+    esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+    success = true;
+  }
+  if(success) {
+    Server.send(200, "text/plain", "Gateways connected!");
+  } else {
+    Server.send(400, "text/plain", "Invalid request params, provide mac address, ex: sender_addr=40:91:51:9F:30:AC");
+  }  
+}
+void connectTwoESP32() {
+  boolean success = false;
+  stringToInt(receiverMac, receiverAddress);
+  if(!esp_now_is_peer_exist(receiverAddress)) {
+    Server.send(200, "text/plain", "Gateways are not connected!  Please connect gateways first.  Ex: connect_gateways?sender_addr=40:91:51:9F:30:AC");
+  } else {
+    if(Server.args() == 2 && Server.argName(0) == "sender_addr" && Server.argName(1) == "recv_addr") {
+      String senderAddr = removeFromString(Server.arg(0), (char *)":");
+      String receiverAddr = removeFromString(Server.arg(1), (char *)":");
+      Serial.printf("Broacast to: %s, %u\n", receiverMac, receiverAddress);
+      struct_message payload = struct_message();
+      payload.task = CONNECT_WITH_ME;
+      payload.hostAddress = receiverAddr;
+      payload.senderAddress = senderAddr;
+      esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+      // TODO: savejson
+      success = true;
+    }
+    if(success) {
+      Server.send(200, "text/plain", "They are connected!");
+    } else {
+      Server.send(400, "text/plain", "Invalid request params, provide mac address, ex: sender_addr=40:91:51:9F:30:AC&recv_addr=40:91:51:9F:30:AC");
+    }  
+  } 
+}
 void updateESP32() {
   boolean success = false;
   if(Server.args() == 2) {
@@ -186,8 +234,7 @@ void updateESP32() {
       //  addPeer(tmpAddress);  
       //}
       Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
-      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
-      
+      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));      
     }
   }
   if(success) {
@@ -316,6 +363,7 @@ void setup() {
       config.close();
     }
   }
+Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s", airValue,waterValue,SensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
 
   Config.autoReconnect = true;
   Config.hostName = "liquid-prep";
@@ -331,6 +379,8 @@ void setup() {
   Server.on("/moisture.json", moistureJson);
   Server.on("/update", updateESP32);
   Server.on("/register", registerESP32);
+  Server.on("/connect_esp32", connectTwoESP32);
+  Server.on("/connect_gateways", connectGateways);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());

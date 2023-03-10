@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_3";       // set device name
+String DEVICE_NAME = "ZONE_2";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -103,7 +103,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   if(payload.hostAddress == hostMac) {
     Serial.println("processing...");
     if(payload.senderAddress.length() > 0) {
-      connectWithMe(payload, DEVICE_NAME);
+      //connectWithMe(payload, DEVICE_NAME, DEVICE_ID);
       senderMac = payload.senderAddress;
     }
     switch(payload.task) {
@@ -118,8 +118,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           DEVICE_NAME = payload.name;
           saveJson();
           // reset payload
-          //resetPayloadTask(payload, CONNECT_WITH_ME);
-          //esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+          resetPayloadTask(payload, CONNECT_WITH_ME);
+          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
         }
       break;
       case UPDATE_RECEIVER_ADDR:
@@ -138,10 +138,14 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           //payload.hostAddress = hostMac;
           //payload.task = CONNECT_WITH_ME;          
           //esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+          resetPayloadTask(payload, CONNECT_WITH_ME);
+          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
         }
       break;
       case CONNECT_WITH_ME:
         Serial.printf("Connecting with %s sender %s\n", payload.name, payload.senderAddress);
+        stringToInt(senderMac, senderAddress);
+        deletePeer(senderAddress);
         senderMac = payload.senderAddress;
         stringToInt(senderMac, senderAddress);
         addPeer(senderAddress);
