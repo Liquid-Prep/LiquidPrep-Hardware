@@ -222,6 +222,7 @@ void setup() {
       saveJson();
       Serial.println(F("Failed to read file, using default configuration"));
       Serial.println(error.c_str());
+      saveJson();
     } else {
       JsonObject obj = doc.as<JsonObject>();
       airValue = doc["airValue"];
@@ -234,12 +235,12 @@ void setup() {
       senderMac = doc["senderMac"].as<String>();
       stringToInt(receiverMac, receiverAddress);
       stringToInt(senderMac, senderAddress);
-      config.close();
     }
+    config.close();
   } else {
     saveJson();
   }
-Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
+Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());

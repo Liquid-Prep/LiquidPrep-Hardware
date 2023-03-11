@@ -5,7 +5,7 @@
   },
   "airValue": 3440,
   "waterValue": 1803,
-  "pin": 32,
+  "sensorPin": 32,
   "wsserver": "192.168.86.24",
   "wsport": 3000,
   "receiverAddress": "",

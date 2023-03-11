@@ -32,7 +32,7 @@
         "value": "Pin"
       },
       {
-        "name": "pin",
+        "name": "sensorPin",
         "type": "ACInput"
       },
       {
@@ -56,19 +56,28 @@
       {
         "name": "caption6",
         "type": "ACText",
-        "value": "Receiver Address"
+        "value": "Receiver Mac Address"
       },
       {
-        "name": "receiverAddress",
+        "name": "receiverMac",
         "type": "ACInput"
       },
       {
         "name": "caption7",
         "type": "ACText",
-        "value": "Sender Address"
+        "value": "Sender Mac Address"
       },
       {
-        "name": "senderAddress",
+        "name": "senderMac",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption8",
+        "type": "ACText",
+        "value": "Interval"
+      },
+      {
+        "name": "espInterval",
         "type": "ACInput"
       },
       {
