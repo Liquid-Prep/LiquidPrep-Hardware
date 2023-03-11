@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_2";       // set device name
+String DEVICE_NAME = "ZONE_1";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -68,7 +68,7 @@ void resetPayload(struct_message payload) {
   payload.name = DEVICE_NAME;
   payload.hostAddress = hostMac;
 }
-void resetPayloadTask(struct_message payload, int task, String msg="") {
+void resetPayloadTask(struct_message payload, int task, String msg="", String moisture="") {
   resetPayload(payload);
   payload.task = task;
   payload.msg = msg;          
@@ -97,15 +97,11 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.printf("%d from %s, %d, %d, %d\n", len, payload.name, payload.task, payload.espInterval, payload.moisture);
+  Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.moisture, payload.msg);
   Serial.printf("=> %s, %s, %s\n", payload.hostAddress, hostMac, payload.senderAddress);
   Serial.println("------");
   if(payload.hostAddress == hostMac) {
     Serial.println("processing...");
-    if(payload.senderAddress.length() > 0) {
-      //connectWithMe(payload, DEVICE_NAME, DEVICE_ID);
-      senderMac = payload.senderAddress;
-    }
     switch(payload.task) {
       case REGISTER_DEVICE:
         if(payload.receiverAddress != receiverMac) {

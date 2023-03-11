@@ -20,6 +20,7 @@ http://192.168.86.48/configure_gateway?wsserver=192.168.86.24&wsport=3003&sender
 http://192.168.86.48/connect_gateway?sender_addr=40:91:51:9F:30:AC
 
 zone_1  40:91:51:9F:30:AC
+http://192.168.86.48/ping?host_addr=40:91:51:9F:30:AC
 zone_2  78:21:84:8C:58:00
 http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC&device_id=2&device_name=Zone_2
 http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC

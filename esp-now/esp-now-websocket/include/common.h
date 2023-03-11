@@ -46,9 +46,10 @@ uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please up
 uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 String gatewayMac = "7821848C89FC";
-String hostMac = "";                // mac address of this device
-String receiverMac = "7821848C89FC";            // mac address of receiver
-String senderMac = "";              // mac address of sender
+String gatewayReceiverMac = "40:91:51:9F:30:AC";                // mac address of gateway receiver  
+String hostMac = "";                           // mac address of this device
+String receiverMac = "7821848C89FC";           // mac address of receiver
+String senderMac = "";                         // mac address of sender
 
 esp_now_peer_info_t peerInfo;
 
@@ -58,12 +59,12 @@ esp_now_peer_info_t peerInfo;
 typedef struct struct_message {  
   int id;
   String name;
-  String moisture;
+  String moisture = "";
   int espInterval = 6000;
-  String receiverAddress;
-  String senderAddress;
-  String hostAddress;
-  String msg;
+  String receiverAddress = "";
+  String senderAddress = "";
+  String hostAddress = "";
+  String msg = "";
   int task;
 } struct_message;
 
@@ -123,17 +124,3 @@ void stringToInt(String mac, uint8_t *output) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
 }
-//void connectWithMe(struct_message payload, String host, int hostId) {
-//  if(payload.id - hostId == 1) {
-//    String sender = payload.senderAddress;
-//    stringToInt(sender, tmpAddress);
-//    if(!esp_now_is_peer_exist(tmpAddress)) {
-//      deletePeer(senderAddress);
-//      stringToInt(sender, senderAddress);
-//      addPeer(senderAddress);
-//      Serial.printf("Connecting %s to %s\n", payload.name, host);
-//    }
-//  } else if(payload.id == 0 && senderMac.length() == 0) {
-//    senderMac = gatewayMac;
-//  }
-//}

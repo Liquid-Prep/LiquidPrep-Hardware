@@ -4,8 +4,7 @@
 #include <WebSocketsClient.h>
 #include <common.h>
 
-// TODO:  need to store device configuration in SPIFFS
-int DEVICE_ID = 0;                   // set device id, 0 = ESP32 Gateway that will relate all messages to edge gateway via websocket
+int DEVICE_ID = 0;                    // set device id, 0 = ESP32 Gateway that will relate all messages to edge gateway via websocket
 String DEVICE_NAME = "GATEWAY";       // set device name
 
 //uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -87,7 +86,7 @@ String saveJson() {
     doc["waterValue"] = waterValue;
     doc["sensorPin"] = sensorPin;
     doc["espInterval"] = espInterval;
-    doc["receiverMac"] = receiverMac;
+    doc["receiverMac"] = gatewayReceiverMac;
     doc["senderMac"] = senderMac;
     doc["wsserver"] = wsserver;
     doc["wsport"] = wsport;
@@ -101,6 +100,17 @@ String saveJson() {
   }
   Serial.println(msg);
   return msg;
+}
+void resetPayload(struct_message payload) {
+  payload = struct_message();
+  payload.id = DEVICE_ID;
+  payload.name = DEVICE_NAME;
+  payload.hostAddress = hostMac;
+}
+void resetPayloadTask(struct_message payload, int task, String msg="") {
+  resetPayload(payload);
+  payload.task = task;
+  payload.msg = msg;          
 }
 
 // callback when data is sent
@@ -133,15 +143,38 @@ String moistureJson() {
 void restartESP() {
   ESP.restart();
 }
+void pingESP() {
+  boolean success = false;  
+  if(Server.args() == 1 && Server.argName(0) == "host_addr") {
+    String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
+    success = true;
+    //resetPayloadTask(payload, MESSAGE_ONLY, "ping from gateway!");
+    struct_message payload = struct_message();
+    payload.id = DEVICE_ID;
+    payload.name = DEVICE_NAME;
+    payload.hostAddress = targetHostAddr;
+    payload.senderAddress = hostMac;
+    payload.task = MESSAGE_ONLY;
+    String s = "ping from gateway!";  
+    payload.msg = s;     
+  Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
+    esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+  if(success) {
+    Server.send(200, "text/plain", "Ping!");
+  } else {
+    Server.send(400, "text/plain", "Invalid request params, correct params: host_addr=...");
+  }  
+}
 void configureGateway() {
   struct_message payload = struct_message();
   boolean success = false;  
   if(Server.args() == 4 && Server.argName(0) == "wsserver" && Server.argName(1) == "wsport" && Server.argName(2) == "sender_addr" && Server.argName(3) == "pin") {
     wsserver = removeFromString(Server.arg(0), (char *)":");
     wsport = atoi(removeFromString(Server.arg(1), (char *)":").c_str());
-    receiverMac = removeFromString(Server.arg(2), (char *)":");
+    gatewayReceiverMac = removeFromString(Server.arg(2), (char *)":");
     sensorPin = atoi(removeFromString(Server.arg(3), (char *)":").c_str());
-  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
+  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,gatewayReceiverMac,senderMac);
     saveJson();
     success = true;
   }  
@@ -191,19 +224,19 @@ void connectGateway() {
   boolean success = false;
   if(Server.args() == 1 && Server.argName(0) == "sender_addr") {
     String senderAddr = removeFromString(Server.arg(0), (char *)":");
-    stringToInt(receiverMac, receiverAddress);
-    deletePeer(receiverAddress);
-    receiverMac = senderAddr;
-    stringToInt(receiverMac, receiverAddress);
-    addPeer(receiverAddress);
+    stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
+    deletePeer(gatewayReceiverAddress);
+    gatewayReceiverMac = senderAddr;
+    stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
+    addPeer(gatewayReceiverAddress);
     saveJson();
 
     struct_message payload = struct_message();
     payload.task = MESSAGE_ONLY;
     payload.hostAddress = receiverMac;
     payload.msg = "gateways are connected!";
-    Serial.printf("connecting gateway with %s\n", receiverMac);
-    esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+    Serial.printf("connecting gateway with %s\n", gatewayReceiverMac);
+    esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
     success = true;
   }
   if(success) {
@@ -214,8 +247,8 @@ void connectGateway() {
 }
 void connectTwoESP32() {
   boolean success = false;
-  stringToInt(receiverMac, receiverAddress);
-  if(!esp_now_is_peer_exist(receiverAddress)) {
+  stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
+  if(!esp_now_is_peer_exist(gatewayReceiverAddress)) {
     Server.send(200, "text/plain", "Gateways are not connected!  Please connect gateways first.  Ex: connect_gateways?sender_addr=40:91:51:9F:30:AC");
   } else {
     if(Server.args() == 2 && Server.argName(0) == "sender_addr" && Server.argName(1) == "recv_addr") {
@@ -226,7 +259,7 @@ void connectTwoESP32() {
       payload.task = CONNECT_WITH_ME;
       payload.hostAddress = receiverAddr;
       payload.senderAddress = senderAddr;
-      esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
       saveJson();
       success = true;
     }
@@ -247,10 +280,10 @@ void updateESP32() {
     Serial.printf("%s, %u\n", hostAddr, tmpAddress);
     if(Server.argName(0) == "host_addr" && tmpAddress == hostAddress) {
       stringToInt(taskValue, tmpAddress);
-      if(Server.argName(1) == "recv_addr" && tmpAddress != receiverAddress) {
-        deletePeer(receiverAddress);
-        std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
-        addPeer(receiverAddress);
+      if(Server.argName(1) == "recv_addr" && tmpAddress != gatewayReceiverAddress) {
+        deletePeer(gatewayReceiverAddress);
+        std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(gatewayReceiverAddress));
+        addPeer(gatewayReceiverAddress);
         success = true;
 
         Serial.print("Param name: ");
@@ -286,8 +319,8 @@ void updateESP32() {
       //  Serial.println("peer not found");
       //  addPeer(tmpAddress);  
       //}
-      Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, receiverAddress);
-      esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));      
+      Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
+      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));      
     }
   }
   if(success) {
@@ -344,7 +377,7 @@ String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
   JsonObject obj = doc.as<JsonObject>();
   wsserver = obj["wsserver"].as<String>();
   wsport = doc["wsport"] = args.arg("wsport").toInt();
-  receiverMac = args.arg("receiverAddress");
+  gatewayReceiverMac = args.arg("receiverAddress");
   senderMac = args.arg("senderAddress");
 
   String msg = saveJson();
@@ -415,9 +448,9 @@ void setup() {
       DEVICE_ID = obj["deviceId"];
       DEVICE_NAME = doc["deviceName"] ? doc["deviceName"].as<String>() : DEVICE_NAME;
       espInterval = doc["espInterval"] ? doc["espInterval"] : espInterval;
-      receiverMac = doc["receiverMac"] ? doc["receiverMac"].as<String>() : receiverMac;
+      gatewayReceiverMac = doc["receiverMac"] ? doc["receiverMac"].as<String>() : gatewayReceiverMac;
       senderMac = doc["senderMac"] ? doc["senderMac"].as<String>() : senderMac;
-      stringToInt(receiverMac, receiverAddress);
+      stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
       stringToInt(senderMac, senderAddress);
     }
     config.close();
@@ -445,6 +478,7 @@ void setup() {
   Server.on("/connect_gateway", connectGateway);
   Server.on("/configure_gateway", configureGateway);
   Server.on("/reboot_gateway", restartESP);
+  Server.on("/ping", pingESP);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());
@@ -454,10 +488,10 @@ void setup() {
     Serial.print("Wi-Fi SSID: ");
     Serial.println(WiFi.SSID());
     hostMac = removeFromString(WiFi.macAddress(), (char *)":");
-    Serial.printf("host: %s, receiver: %s\n", hostMac, receiverMac);
+    Serial.printf("host: %s, receiver: %s, gateway receiver: %s\n", hostMac, receiverMac, gatewayReceiverMac);
     stringToInt(hostMac, hostAddress);
-    stringToInt(receiverMac, receiverAddress);
-    Serial.printf("host: %u, receiver: %u\n", hostAddress, receiverAddress);
+    stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
+    Serial.printf("host: %u, gatway receiver: %u\n", hostAddress, gatewayReceiverAddress);
   }
   waitCount = 0;
   while (WiFi.status() != WL_CONNECTED && waitCount++ < 3) {
@@ -476,8 +510,8 @@ void setup() {
   }
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_register_send_cb(OnDataSent);
-  Serial.printf("Adding peer: %s, %u\n", receiverMac, receiverAddress);
-  addPeer(receiverAddress);  
+  Serial.printf("Adding peer: %s, %u\n", receiverMac, gatewayReceiverAddress);
+  addPeer(gatewayReceiverAddress);  
 }
 
 void loop() {
