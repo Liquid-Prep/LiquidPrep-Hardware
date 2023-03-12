@@ -151,6 +151,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
+        Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.hostAddress, payload.receiverAddress);
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case MESSAGE_ONLY:
@@ -273,7 +274,10 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,
   esp_now_register_send_cb(OnDataSent);
 
   addPeer(receiverAddress);
-
+  if(senderMac.length() == 12) {
+    stringToInt(senderMac, senderAddress);
+    addPeer(senderAddress);
+  }
 }
 
 void loop() {

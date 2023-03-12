@@ -270,6 +270,12 @@ void connectTwoESP32() {
     }  
   } 
 }
+void queryESP() {
+  boolean success = false;
+  if(Server.args() == 1 && Server.argName(0) == "sender_addr") {
+    String senderAddr = removeFromString(Server.arg(0), (char *)":");
+  }
+}
 void updateESP32() {
   boolean success = false;
   if(Server.args() == 2) {
