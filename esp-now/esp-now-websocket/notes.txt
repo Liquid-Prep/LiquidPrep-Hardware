@@ -26,12 +26,16 @@ zone_2  78:21:84:8C:58:00
 http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC&device_id=2&device_name=Zone_2
 http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
 http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=30000
+http://192.168.86.48/ping?host_addr=78:21:84:8C:58:00
 
 LORA    78:21:84:9F:2B:98
 http://192.168.86.48/register?host_addr=78:21:84:9F:2B:98C&recv_addr=78:21:84:9F:2B:98&device_id=3&device_name=LORA
 http://192.168.86.48/connect_esp32?sender_addr=78:21:84:9F:2B:98&recv_addr=78:21:84:8C:58:00
 http://192.168.86.48/update?host_addr=78:21:84:9F:2B:98&esp_interval=12000
+http://192.168.86.48/ping?host_addr=78:21:84:9F:2B:98
 
 ZONE_5  AC:67:B2:38:E1:AC
 http://192.168.86.48/register?host_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:8C:58:00&device_id=5&device_name=Zone_3
 http://192.168.86.48/connect_esp32?sender_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:9F:2B:98
+
+http://192.168.86.48/ping?host_addr=AC:67:B2:38:E1:AC

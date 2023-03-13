@@ -149,13 +149,26 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
         esp_now_send(senderAddress, (uint8_t *) &payload, sizeof(payload));
       break;
+      case PING: 
+        payload.type = PING;
+        payload.task = RELATE_MESSAGE_UPSTREAM;
+        payload.senderAddress = hostMac;
+        payload.name = DEVICE_NAME;
+        payload.id = DEVICE_ID;
+        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+      break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
         Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.hostAddress, payload.receiverAddress);
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case MESSAGE_ONLY:
-        Serial.printf("fyi: %s\n", payload.msg);
+        Serial.printf("fyi: %s, %s\n", payload.msg, payload.senderAddress);
+      break;
+      case RELATE_MESSAGE_UPSTREAM:
+        Serial.printf("send upstream to %s\n", receiverMac);
+        stringToInt(receiverMac, tmpAddress);
+        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case UPDATE_WIFI_CHANNEL:
       break;
@@ -179,9 +192,16 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       break;
     }
   } else {
-    Serial.printf("send downstream to %s\n", senderMac);
-    stringToInt(senderMac, tmpAddress);
-    esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+    if(payload.task == RELATE_MESSAGE_UPSTREAM) {
+      Serial.printf("send ustream to %s\n", receiverMac);
+      stringToInt(receiverMac, tmpAddress);
+      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+
+    } else {
+      Serial.printf("send downstream to %s\n", senderMac);
+      stringToInt(senderMac, tmpAddress);
+      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+    }
   }
 }
 
@@ -288,6 +308,7 @@ void loop() {
   payload.name = DEVICE_NAME;
   payload.hostAddress = receiverMac;
   payload.senderAddress = hostMac;
+  payload.espInterval = espInterval;
   Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, hostMac);
   if(payload.id > 1) {
     // TODO:  need a better way to identify leader vs workers

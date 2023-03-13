@@ -22,8 +22,10 @@ enum Task {
   UPDATE_SENDER_ADDR,
   REGISTER_DEVICE,
   RELATE_MESSAGE,
+  RELATE_MESSAGE_UPSTREAM,
   CONNECT_WITH_ME,
-  MESSAGE_ONLY
+  MESSAGE_ONLY,
+  PING
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -34,8 +36,10 @@ Task str2enum(const std::string& str) {
   else if(str == "UPDATE_ESP_INTERVAL") return UPDATE_ESP_INTERVAL;
   else if(str == "REGISTER_DEVICE") return REGISTER_DEVICE;
   else if(str == "RELATE_MESSAGE") return RELATE_MESSAGE;
+  else if(str == "RELATE_MESSAGE_UPSTREAM") return RELATE_MESSAGE_UPSTREAM;
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
   else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
+  else if(str == "PING") return PING;
   else return NO_TASK;
 }
 
@@ -66,6 +70,7 @@ typedef struct struct_message {
   String hostAddress = "";
   String msg = "";
   int task;
+  int type;
 } struct_message;
 
 // Common utility functions

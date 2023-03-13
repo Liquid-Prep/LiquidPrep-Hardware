@@ -126,9 +126,16 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
   Serial.printf("%d, %u\n", len, mac);
-  Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
-  Serial.println();
-  String response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
+  String response = "";
+  if(payload.type == PING) {
+    Serial.println(payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
+    Serial.println();
+    response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + "}";
+  } else {
+    Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
+    Serial.println();
+    response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
+  }
   sendData(response);
 }
 
@@ -154,9 +161,8 @@ void pingESP() {
     payload.name = DEVICE_NAME;
     payload.hostAddress = targetHostAddr;
     payload.senderAddress = hostMac;
-    payload.task = MESSAGE_ONLY;
-    String s = "ping from gateway!";  
-    payload.msg = s;     
+    payload.task = PING;
+    payload.msg = DEVICE_NAME;     
   Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
     esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
   }
