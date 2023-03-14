@@ -18,6 +18,7 @@ https://forum.arduino.cc/t/conversion-of-mac-addresses-string-to-uint8-t-array-f
 configure_gateway  78:21:84:8C:89:FC
 http://192.168.86.48/configure_gateway?wsserver=192.168.86.24&wsport=3003&sender_addr=40:91:51:9F:30:AC&pin=32
 http://192.168.86.48/connect_gateway?sender_addr=40:91:51:9F:30:AC
+http://192.168.86.48/query?host_addr=78:21:84:8C:89:FC
 
 zone_1  40:91:51:9F:30:AC
 http://192.168.86.48/ping?host_addr=40:91:51:9F:30:AC

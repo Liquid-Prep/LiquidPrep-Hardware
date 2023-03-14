@@ -28,7 +28,9 @@ enum Task {
   PING,
   QUERY,
   QUERY_RESULT,
-  CONNECT_WITH_YOU
+  CONNECT_WITH_YOU,
+  CALIBRATE,
+  CALIBRATE_RESULT
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -131,4 +133,43 @@ void stringToInt(String mac, uint8_t *output) {
   for ( uint8_t i = 0; i < 6; i++ ) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
+}
+void calibrateAir(int &air, int pin) {
+  Serial.println("Leave Moisture sensor out of water for calibration");
+  int maxValue = 0;
+  for (int i = 0; i < 32; i++) {
+    int val = analogRead(pin);
+    Serial.println(val);
+    if (val > maxValue) {
+      maxValue = val;
+    }
+    delay(500);
+  }
+  Serial.println(maxValue);
+  air = maxValue;
+}
+void calibrateWater(int &water, int pin) {
+  Serial.println("Put Moisture sensor in water for calibration");
+  int minValue = 4096;
+  for (int i = 0; i < 32; i++){
+    int val = analogRead(pin);
+    Serial.println(val);
+    if (val < minValue){
+      minValue = val;
+    }
+    delay(500);
+  }
+  Serial.println(minValue);
+  water = minValue;
+}
+void setPayload(struct_message payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+  payload = struct_message();
+  payload.id = id;
+  payload.name = name;
+  payload.hostAddress = host;
+  payload.senderAddress = sender;
+  payload.receiverAddress = receiver;
+  payload.task = task;
+  payload.type = type;
+  sprintf(payload.msg, "%s", msg.c_str());
 }

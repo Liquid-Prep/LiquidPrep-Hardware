@@ -145,17 +145,31 @@ void httpResponse(boolean success, String msg1, String msg2) {
 void restartESP() {
   ESP.restart();
 }
-void setPayload(struct_message payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
-  // TODO: consolidate this function for both esp-now-socket and esp-now-twoway
-  payload = struct_message();
-  payload.id = id;
-  payload.name = name;
-  payload.hostAddress = host;
-  payload.senderAddress = sender;
-  payload.receiverAddress = receiver;
-  payload.task = task;
-  payload.type = type;
-  sprintf(payload.msg, "%s", msg.c_str());
+void calibrate() {
+  boolean success = false;
+  if(Server.args() == 2 && Server.argName(0) == "value" && Server.argName(1) == "host_addr") {
+    success = true;
+    String targetHostAddr = removeFromString(Server.arg(1), (char *)":");
+    struct_message payload = struct_message();
+    if(targetHostAddr == hostMac) {
+      if(Server.arg(0) == "air_value") {
+        calibrateAir(airValue, sensorPin);
+      } else if(Server.arg(0) == "water_value") {
+        calibrateWater(waterValue, sensorPin);
+      } else {
+        success = false;
+      }
+      if(success) {
+        sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+        String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(CALIBRATE_RESULT) + "}";
+        sendData(response);
+      }
+    } else {
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, CALIBRATE, 0, "");
+      esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
+    }
+  }
+  httpResponse(success, "Calibrate",  "Invalid request params, correct params: value=air_value&host_addr=... OR value=water_value&host_addr=...");
 }
 void queryESP() {
   boolean success = false;
@@ -514,6 +528,7 @@ void setup() {
   Server.on("/reboot_gateway", restartESP);
   Server.on("/ping", pingESP);
   Server.on("/query", queryESP);
+  Server.on("/calibrate", calibrate);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());
