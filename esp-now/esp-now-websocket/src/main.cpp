@@ -110,7 +110,7 @@ void resetPayload(struct_message payload) {
 void resetPayloadTask(struct_message payload, int task, String msg="") {
   resetPayload(payload);
   payload.task = task;
-  payload.msg = msg;          
+  sprintf(payload.msg, "%s", msg.c_str());          
 }
 
 // callback when data is sent
@@ -131,6 +131,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     Serial.println(payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
     Serial.println();
     response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + "}";
+  } else if(payload.type == QUERY_RESULT) {
+    Serial.println(payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
+    Serial.println();
+    response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + "}";
   } else {
     Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
     Serial.println();
@@ -146,9 +150,30 @@ String moistureJson() {
   Serial.printf("sensor reading: %s\n", moistureLevel);
   return response;
 }
-
+void httpResponse(boolean success, String msg1, String msg2) {
+  if(success) {
+    Server.send(200, "text/plain", msg1);
+  } else {
+    Server.send(400, "text/plain", msg2);
+  }  
+}
 void restartESP() {
   ESP.restart();
+}
+void queryESP() {
+  boolean success = false;
+  if(Server.args() == 1 && Server.argName(0) == "host_addr") {
+    success = true;
+    String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
+    struct_message payload = struct_message();
+    payload.id = DEVICE_ID;
+    payload.name = DEVICE_NAME;
+    payload.hostAddress = targetHostAddr;
+    payload.senderAddress = hostMac;
+    payload.task = QUERY;
+    esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+  httpResponse(success, "Query ESP",  "Invalid request params, correct params: host_addr=...");
 }
 void pingESP() {
   boolean success = false;  
@@ -162,7 +187,7 @@ void pingESP() {
     payload.hostAddress = targetHostAddr;
     payload.senderAddress = hostMac;
     payload.task = PING;
-    payload.msg = DEVICE_NAME;     
+    sprintf(payload.msg, "%s", DEVICE_NAME.c_str());                 
   Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
     esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
   }
@@ -240,7 +265,7 @@ void connectGateway() {
     struct_message payload = struct_message();
     payload.task = MESSAGE_ONLY;
     payload.hostAddress = receiverMac;
-    payload.msg = "gateways are connected!";
+    sprintf(payload.msg, "gateways are connected");  
     Serial.printf("connecting gateway with %s\n", gatewayReceiverMac);
     esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
     success = true;
@@ -266,7 +291,7 @@ void connectTwoESP32() {
       payload.hostAddress = receiverAddr;
       payload.senderAddress = senderAddr;
       esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
-      saveJson();
+      //saveJson();
       success = true;
     }
     if(success) {
@@ -275,12 +300,6 @@ void connectTwoESP32() {
       Server.send(400, "text/plain", "Invalid request params, provide mac address, ex: sender_addr=40:91:51:9F:30:AC&recv_addr=40:91:51:9F:30:AC");
     }  
   } 
-}
-void queryESP() {
-  boolean success = false;
-  if(Server.args() == 1 && Server.argName(0) == "sender_addr") {
-    String senderAddr = removeFromString(Server.arg(0), (char *)":");
-  }
 }
 void updateESP32() {
   boolean success = false;
@@ -491,6 +510,7 @@ void setup() {
   Server.on("/configure_gateway", configureGateway);
   Server.on("/reboot_gateway", restartESP);
   Server.on("/ping", pingESP);
+  Server.on("/query", queryESP);
   Serial.println("Connecting");
   if (Portal.begin()) {
     Serial.println("WiFi connected: " + WiFi.localIP().toString());

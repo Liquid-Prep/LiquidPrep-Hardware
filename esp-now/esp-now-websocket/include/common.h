@@ -25,7 +25,10 @@ enum Task {
   RELATE_MESSAGE_UPSTREAM,
   CONNECT_WITH_ME,
   MESSAGE_ONLY,
-  PING
+  PING,
+  QUERY,
+  QUERY_RESULT,
+  CONNECT_WITH_YOU
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -68,7 +71,7 @@ typedef struct struct_message {
   String receiverAddress = "";
   String senderAddress = "";
   String hostAddress = "";
-  String msg = "";
+  char msg[80];
   int task;
   int type;
 } struct_message;

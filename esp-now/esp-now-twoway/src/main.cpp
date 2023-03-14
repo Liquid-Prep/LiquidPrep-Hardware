@@ -14,7 +14,7 @@ int soilMoistureValue = 0;
 float soilmoisturepercent = 0;
 const char* fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
-int espInterval=6000; //interval for reading data
+int espInterval=30000; //interval for reading data
 
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
@@ -71,7 +71,7 @@ void resetPayload(struct_message payload) {
 void resetPayloadTask(struct_message payload, int task, String msg="", String moisture="") {
   resetPayload(payload);
   payload.task = task;
-  payload.msg = msg;          
+  sprintf(payload.msg, "%s", msg.c_str());          
 }
 void updateDeviceReceiver(struct_message payload) {
   deletePeer(receiverAddress);
@@ -109,7 +109,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           receiverMac = payload.receiverAddress;
           stringToInt(receiverMac, receiverAddress);
           addPeer(receiverAddress);
-          Serial.printf("registering...%s, %d", payload.name, payload.id);
+          Serial.printf("registering...%s, %d\n", payload.name, payload.id);
           DEVICE_ID = payload.id;
           DEVICE_NAME = payload.name;
           saveJson();
@@ -139,28 +139,65 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         }
       break;
       case CONNECT_WITH_ME:
-        Serial.printf("Connecting with %s sender %s\n", payload.name, payload.senderAddress);
+        Serial.printf("Connecting %s with sender %s\n", DEVICE_NAME, payload.senderAddress);
         stringToInt(senderMac, senderAddress);
         deletePeer(senderAddress);
         senderMac = payload.senderAddress;
         stringToInt(senderMac, senderAddress);
         addPeer(senderAddress);
         saveJson();
-        resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
+        payload = struct_message();
+        payload.task = CONNECT_WITH_YOU;
+        payload.hostAddress = senderMac;
+        payload.receiverAddress = hostMac;
         esp_now_send(senderAddress, (uint8_t *) &payload, sizeof(payload));
       break;
-      case PING: 
+      case CONNECT_WITH_YOU:
+        Serial.printf("Connecting %s with receiver %s\n", DEVICE_NAME, payload.receiverAddress);
+        stringToInt(receiverMac, receiverAddress);
+        deletePeer(receiverAddress);
+        receiverMac = payload.receiverAddress;
+        stringToInt(receiverMac, receiverAddress);
+        addPeer(receiverAddress);
+        saveJson();
+        payload = struct_message();
+        payload.task = MESSAGE_ONLY;
+        payload.hostAddress = receiverMac;
+        sprintf(payload.msg, "We are connected!");
+        //resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
+        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+      break;
+      case PING:
+        payload = struct_message(); 
         payload.type = PING;
         payload.task = RELATE_MESSAGE_UPSTREAM;
         payload.senderAddress = hostMac;
+        payload.hostAddress = receiverMac;
         payload.name = DEVICE_NAME;
         payload.id = DEVICE_ID;
-        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+        stringToInt(receiverMac, tmpAddress);
+        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+      break;
+      case QUERY:
+        payload = struct_message(); 
+        payload.type = QUERY_RESULT;
+        payload.task = RELATE_MESSAGE_UPSTREAM;
+        payload.senderAddress = hostMac;
+        payload.hostAddress = receiverMac;
+        payload.name = DEVICE_NAME;
+        payload.id = DEVICE_ID;
+        payload.espInterval = espInterval;
+        sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+        Serial.println(payload.msg);
+        stringToInt(receiverMac, tmpAddress);
+        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
-        Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.hostAddress, payload.receiverAddress);
-        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+        payload.hostAddress = receiverMac;
+        stringToInt(receiverMac, tmpAddress);
+        Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.hostAddress, receiverMac);
+        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case MESSAGE_ONLY:
         Serial.printf("fyi: %s, %s\n", payload.msg, payload.senderAddress);
@@ -246,7 +283,7 @@ void setup() {
       waterValue = doc["waterValue"];
       sensorPin = doc["sensorPin"];
       DEVICE_ID = obj["deviceId"];
-      DEVICE_NAME = doc["deviceName"].as<String>();;
+      DEVICE_NAME = doc["deviceName"].as<String>();
       espInterval = doc["espInterval"];
       receiverMac = doc["receiverMac"].as<String>();
       senderMac = doc["senderMac"].as<String>();
@@ -309,7 +346,7 @@ void loop() {
   payload.hostAddress = receiverMac;
   payload.senderAddress = hostMac;
   payload.espInterval = espInterval;
-  Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, hostMac);
+  Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
   if(payload.id > 1) {
     // TODO:  need a better way to identify leader vs workers
     payload.task = RELATE_MESSAGE;
