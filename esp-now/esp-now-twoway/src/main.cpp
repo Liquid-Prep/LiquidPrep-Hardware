@@ -189,8 +189,27 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         payload.espInterval = espInterval;
         sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
         Serial.println(payload.msg);
-        stringToInt(receiverMac, tmpAddress);
-        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+        espNowSend(receiverMac, payload);
+      break;
+      case CALIBRATE_AIR:
+      case CALIBRATE_WATER:
+        if(payload.task == CALIBRATE_AIR) {
+          calibrateAir(airValue, sensorPin);
+        } else {
+          calibrateWater(waterValue, sensorPin);
+        }
+        payload = struct_message(); 
+        payload.type = CALIBRATE_RESULT;
+        payload.task = RELATE_MESSAGE_UPSTREAM;
+        payload.senderAddress = hostMac;
+        payload.hostAddress = receiverMac;
+        payload.name = DEVICE_NAME;
+        payload.id = DEVICE_ID;
+//void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+        // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
+        //setPayload(payload, DEVICE_ID, DEVICE_NAME, receiverMac, hostMac, "", RELATE_MESSAGE_UPSTREAM, CALIBRATE_RESULT, "");
+        sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+        espNowSend(receiverMac, payload);
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
@@ -203,7 +222,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         Serial.printf("fyi: %s, %s\n", payload.msg, payload.senderAddress);
       break;
       case RELATE_MESSAGE_UPSTREAM:
-        Serial.printf("send upstream to %s\n", receiverMac);
+        Serial.printf("send upstream to %s from %s\n", receiverMac, payload.name);
         stringToInt(receiverMac, tmpAddress);
         esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
       break;
@@ -230,12 +249,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     }
   } else {
     if(payload.task == RELATE_MESSAGE_UPSTREAM) {
-      Serial.printf("send ustream to %s\n", receiverMac);
+      Serial.printf("send ustream to %s from %s\n", receiverMac, payload.name);
       stringToInt(receiverMac, tmpAddress);
       esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
 
     } else {
-      Serial.printf("send downstream to %s\n", senderMac);
+      Serial.printf("send downstream to %s from %s\n", senderMac, payload.name);
       stringToInt(senderMac, tmpAddress);
       esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
     }

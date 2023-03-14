@@ -29,7 +29,8 @@ enum Task {
   QUERY,
   QUERY_RESULT,
   CONNECT_WITH_YOU,
-  CALIBRATE,
+  CALIBRATE_AIR,
+  CALIBRATE_WATER,
   CALIBRATE_RESULT
 };
 Task str2enum(const std::string& str) {
@@ -162,7 +163,8 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+  // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
   payload.name = name;
@@ -172,4 +174,8 @@ void setPayload(struct_message payload, int id, String name, String host, String
   payload.task = task;
   payload.type = type;
   sprintf(payload.msg, "%s", msg.c_str());
+}
+void espNowSend(String receiver, struct_message payload) {
+  stringToInt(receiverMac, tmpAddress);
+  esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
 }
