@@ -7,21 +7,6 @@
 int DEVICE_ID = 0;                    // set device id, 0 = ESP32 Gateway that will relate all messages to edge gateway via websocket
 String DEVICE_NAME = "GATEWAY";       // set device name
 
-//uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-//uint8_t receiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
-//uint8_t tmpAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-//typedef struct struct_message {  
-//  int currPointer;
-//  int id;
-//  String name;
-//  String moisture;
-//  unsigned long timestamp;
-
-//} struct_message;
-//struct_message myData;
-//esp_now_peer_info_t peerInfo;
-
 WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
@@ -160,18 +145,36 @@ void httpResponse(boolean success, String msg1, String msg2) {
 void restartESP() {
   ESP.restart();
 }
+void setPayload(struct_message payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+  // TODO: consolidate this function for both esp-now-socket and esp-now-twoway
+  payload = struct_message();
+  payload.id = id;
+  payload.name = name;
+  payload.hostAddress = host;
+  payload.senderAddress = sender;
+  payload.receiverAddress = receiver;
+  payload.task = task;
+  payload.type = type;
+  sprintf(payload.msg, "%s", msg.c_str());
+}
 void queryESP() {
   boolean success = false;
   if(Server.args() == 1 && Server.argName(0) == "host_addr") {
     success = true;
     String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
     struct_message payload = struct_message();
-    payload.id = DEVICE_ID;
-    payload.name = DEVICE_NAME;
-    payload.hostAddress = targetHostAddr;
-    payload.senderAddress = hostMac;
-    payload.task = QUERY;
-    esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
+    if(targetHostAddr == hostMac) {
+      sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+      String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(QUERY_RESULT) + "}";
+      sendData(response);
+    } else {
+      payload.id = DEVICE_ID;
+      payload.name = DEVICE_NAME;
+      payload.hostAddress = targetHostAddr;
+      payload.senderAddress = hostMac;
+      payload.task = QUERY;
+      esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
+    }  
   }
   httpResponse(success, "Query ESP",  "Invalid request params, correct params: host_addr=...");
 }
