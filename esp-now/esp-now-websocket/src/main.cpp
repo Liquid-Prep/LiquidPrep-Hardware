@@ -145,6 +145,7 @@ void calibrate() {
       } else {
         calibrateWater(waterValue, sensorPin);
       }
+      saveJson();
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(CALIBRATE_RESULT) + "}";
       sendData(response);

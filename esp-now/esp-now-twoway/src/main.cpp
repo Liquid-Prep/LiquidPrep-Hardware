@@ -198,6 +198,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         } else {
           calibrateWater(waterValue, sensorPin);
         }
+        saveJson();
         payload = struct_message(); 
         payload.type = CALIBRATE_RESULT;
         payload.task = RELATE_MESSAGE_UPSTREAM;

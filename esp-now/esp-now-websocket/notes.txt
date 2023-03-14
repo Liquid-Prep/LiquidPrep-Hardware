@@ -39,14 +39,18 @@ http://192.168.86.48/update?host_addr=78:21:84:9F:2B:98&esp_interval=12000
 http://192.168.86.48/ping?host_addr=78:21:84:9F:2B:98
 http://192.168.86.48/query?host_addr=78:21:84:9F:2B:98
 
-ZONE_5  AC:67:B2:38:E1:AC
+ZONE_5  AC:67:B2:38:E1:AC seems to be faulty
 http://192.168.86.48/register?host_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:9F:2B:98&device_id=5&device_name=Zone_5
 http://192.168.86.48/connect_esp32?sender_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:9F:2B:98
 http://192.168.86.48/update?host_addr=AC:67:B2:38:E1:AC&esp_interval=12000
 http://192.168.86.48/ping?host_addr=AC:67:B2:38:E1:AC
 http://192.168.86.48/query?host_addr=AC:67:B2:38:E1:AC
 
-
+zone_6   78:21:84:8C:9D:34   7821848C9D34
+http://192.168.86.48/register?host_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:E1:AC&device_id=6&device_name=Zone_6
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:E1:AC
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=78:21:84:9F:2B:98
+http://192.168.86.48/ping?host_addr=78:21:84:8C:9D:34
 
 
 3440, 1803, 32, 2, Zone_2, 19000, 4091519F30AC, 7821849F2B98
