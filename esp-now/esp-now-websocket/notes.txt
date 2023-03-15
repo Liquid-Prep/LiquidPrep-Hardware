@@ -51,6 +51,7 @@ http://192.168.86.48/register?host_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:
 http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:E1:AC
 http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=78:21:84:9F:2B:98
 http://192.168.86.48/ping?host_addr=78:21:84:8C:9D:34
+http://192.168.86.48/calibrate?value=air_value&host_addr=78:21:84:8C:9D:34
 
 
 3440, 1803, 32, 2, Zone_2, 19000, 4091519F30AC, 7821849F2B98
