@@ -3,10 +3,10 @@
 The following two topologies uses ESP-NOW communication protocol to relate sensor data to the edge gateway by bridging between multiple esp32.  According to documentation, ESP-NOW protocol has maximum range of 480 meters between esp32's.  
 
 ## Many-To-One
-![Alt text](many-to-one.jpg?raw=true "Many To One") 
+![Alt text](many-to-one.jpg "Many To One") 
 
 ## One-To-One
-![Alt text](one-to-one.jpg?raw=true "One To One") 
+![Alt text](one-to-one.jpg "One To One") 
 
 ## To setup
 - Flash esp-now-websocket firmware onto the esp gateway
