@@ -8,6 +8,9 @@ The following two topologies uses ESP-NOW communication protocol to relate senso
 ## One-To-One
 ![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/one-to-one.jpg "One To One") 
 
+## Mesh
+![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/mesh.jpg "Mesh") 
+
 ## To setup
 - Flash esp-now-websocket firmware onto the esp gateway
   - Join esp32ap wifi to configuire it to join your local wifi network with a static ip
