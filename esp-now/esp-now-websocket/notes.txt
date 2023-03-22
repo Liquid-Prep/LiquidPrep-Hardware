@@ -1,0 +1,84 @@
+http://192.168.86.48/update_receiver_address?host_addr=78:21:84:8C:58:00&recv_addr=78:21:84:8C:58:00
+http://192.168.86.48/add_receiver_address?host_addr=78:21:84:8C:89:FC&recv_addr=78:21:84:8C:58:00
+http://192.168.86.48/update_receiver_address?host_addr=40:91:51:9F:30:AC&esp_interval=8000
+http://192.168.86.48/update_receiver_address?host_addr=AC:67:B2:38:E1:AC&esp_interval=8000
+
+zone_1 = 40:91:51:9F:30:AC
+http://192.168.86.48/update?host_addr=40:91:51:9F:30:AC&esp_interval=8000
+zone_2 = 78:21:84:8C:58:00
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=8000
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=8000
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&device_name=ZONE_2
+
+http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
+
+https://forum.arduino.cc/t/conversion-of-mac-addresses-string-to-uint8-t-array-for-esp-now/857512/3
+
+
+configure_gateway  78:21:84:8C:89:FC
+http://192.168.86.48/configure_gateway?wsserver=192.168.86.24&wsport=3003&sender_addr=40:91:51:9F:30:AC&pin=32
+http://192.168.86.48/connect_gateway?sender_addr=40:91:51:9F:30:AC
+http://192.168.86.48/query?host_addr=78:21:84:8C:89:FC
+http://192.168.86.48/ping?host_addr=78:21:84:8C:89:FC
+
+zone_1  40:91:51:9F:30:AC
+http://192.168.86.48/query?host_addr=40:91:51:9F:30:AC
+http://192.168.86.48/ping?host_addr=40:91:51:9F:30:AC
+
+zone_2  78:21:84:8C:58:00
+http://192.168.86.48/register?host_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC&device_id=2&device_name=Zone_2
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:58:00&recv_addr=40:91:51:9F:30:AC
+http://192.168.86.48/update?host_addr=78:21:84:8C:58:00&esp_interval=30000
+http://192.168.86.48/ping?host_addr=78:21:84:8C:58:00
+http://192.168.86.48/query?host_addr=78:21:84:8C:58:00
+
+LORA    78:21:84:9F:2B:98
+http://192.168.86.48/register?host_addr=78:21:84:9F:2B:98C&recv_addr=78:21:84:9F:2B:98&device_id=3&device_name=LORA
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:9F:2B:98&recv_addr=78:21:84:8C:58:00
+http://192.168.86.48/update?host_addr=78:21:84:9F:2B:98&esp_interval=12000
+http://192.168.86.48/ping?host_addr=78:21:84:9F:2B:98
+http://192.168.86.48/query?host_addr=78:21:84:9F:2B:98
+
+ZONE_5  AC:67:B2:38:E1:AC seems to be faulty
+http://192.168.86.48/register?host_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:9F:2B:98&device_id=5&device_name=Zone_5
+http://192.168.86.48/connect_esp32?sender_addr=AC:67:B2:38:E1:AC&recv_addr=78:21:84:9F:2B:98
+http://192.168.86.48/update?host_addr=AC:67:B2:38:E1:AC&esp_interval=12000
+http://192.168.86.48/ping?host_addr=AC:67:B2:38:E1:AC
+http://192.168.86.48/query?host_addr=AC:67:B2:38:E1:AC
+
+zone_6   78:21:84:8C:9D:34   7821848C9D34
+http://192.168.86.48/register?host_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:E1:AC&device_id=6&device_name=Zone_6
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=AC:67:B2:38:E1:AC
+http://192.168.86.48/connect_esp32?sender_addr=78:21:84:8C:9D:34&recv_addr=78:21:84:9F:2B:98
+http://192.168.86.48/ping?host_addr=78:21:84:8C:9D:34
+http://192.168.86.48/calibrate?value=air_value&host_addr=78:21:84:8C:9D:34
+
+
+3440, 1803, 32, 2, Zone_2, 19000, 4091519F30AC, 7821849F2B98
+Initializing...
+My MAC address is: 78:21:84:8C:58:00
+My MAC address is: 7821848C5800, 1073470344, 1073470338
+sender: 7821849F2B98, 1073470332, receiver: 4091519F30AC, 1073470338
+Wi-Fi Channel: 0
+
+3440, 1803, 32, 3, LORA, 19000, 4091519F30AC, AC67B238E1AC
+Initializing...
+My MAC address is: 78:21:84:9F:2B:98
+My MAC address is: 7821849F2B98, 1073470344, 1073470338
+sender: AC67B238E1AC, 1073470332, receiver: 4091519F30AC, 1073470338
+Wi-Fi Channel: 0
+
+3440, 1803, 32, 5, Zone_5, 30000, 7821849F2B98, 
+Initializing...
+My MAC address is: AC:67:B2:38:E1:AC
+My MAC address is: AC67B238E1AC, 1073470344, 1073470338
+sender: , 1073470332, receiver: 7821849F2B98, 1073470338
+Wi-Fi Channel: 0
+
+3440, 1803, 32, 1, ZONE_1, 30000, 7821848C89FC, 
+Initializing...
+My MAC address is: AC:67:B2:38:E1:AC
+My MAC address is: AC67B238E1AC, 1073470344, 1073470338
+sender: , 1073470332, receiver: 7821848C89FC, 1073470338
+Wi-Fi Channel: 0
+sensor reading: 277
