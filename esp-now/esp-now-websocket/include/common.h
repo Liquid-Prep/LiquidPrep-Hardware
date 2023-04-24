@@ -77,6 +77,7 @@ typedef struct struct_message {
   char msg[80];
   int task;
   int type;
+  uint32_t  msgId;
 } struct_message;
 
 // Common utility functions

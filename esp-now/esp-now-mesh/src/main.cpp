@@ -40,6 +40,37 @@ void moistureJson() {
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
+uint32_t generateMessageHash(const struct_message &msg) {
+    String combined = String(msg.senderAddress) + String(msg.type) + String(millis());
+    uint32_t hash = 0;
+
+    for (unsigned int i = 0; i < combined.length(); i++) {
+        hash = hash * 31 + combined[i];
+    }
+
+    return hash;
+}
+
+#define MESSAGE_ID_BUFFER_SIZE 100
+
+uint32_t messageIDBuffer[MESSAGE_ID_BUFFER_SIZE];
+uint16_t messageIDBufferIndex = 0;
+
+bool isMessageSeen(uint32_t messageID) {
+  // Check if the message ID is already in the buffer
+  for (uint16_t i = 0; i < MESSAGE_ID_BUFFER_SIZE; i++) {
+    if (messageIDBuffer[i] == messageID) {
+      return true; // The message has been seen before
+    }
+  }
+
+  // The message is new, add it to the buffer
+  messageIDBuffer[messageIDBufferIndex] = messageID;
+  messageIDBufferIndex = (messageIDBufferIndex + 1) % MESSAGE_ID_BUFFER_SIZE;
+
+  return false; // The message has not been seen before
+}
+
 String saveJson() {
   String msg = "";
   File configFile = SPIFFS.open("/config.json", "w+"); 
@@ -96,6 +127,10 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
+  if (isMessageSeen(payload.msgId)) {
+        Serial.println("Message already seen, ignoring...");
+        return; // The message is a duplicate, don't send it again
+    }
   Serial.print("Bytes received: ");
   Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.moisture, payload.msg);
   Serial.printf("=> %s, %s, %s\n", payload.hostAddress, hostMac, payload.senderAddress);
@@ -374,6 +409,7 @@ void loop() {
     payload.task = NO_TASK;
   }
   payload.moisture = moistureLevel;
+  payload.msgId = generateMessageHash(payload);
   esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
 
   delay(espInterval);
