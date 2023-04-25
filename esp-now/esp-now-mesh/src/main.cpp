@@ -169,14 +169,18 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case PING:
-        payload = struct_message(); 
-        payload.type = BROADCAST;
-        payload.task = PING;
-        //payload.senderAddress = hostMac;
-        //payload.hostAddress = receiverMac;
-        payload.name = DEVICE_NAME;
-        payload.id = DEVICE_ID;
-        //stringToInt(receiverMac, tmpAddress);
+        //payload = struct_message(); 
+        //payload.type = BROADCAST;
+        //payload.task = PING;
+        ////payload.senderAddress = hostMac;
+        ////payload.hostAddress = receiverMac;
+        //payload.name = DEVICE_NAME;
+        //payload.id = DEVICE_ID;
+        ////stringToInt(receiverMac, tmpAddress);
+        //esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING, BROADCAST, DEVICE_NAME);
+        Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
+        payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case QUERY:
@@ -190,6 +194,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         payload.espInterval = espInterval;
         sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
         Serial.println(payload.msg);
+        payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case CALIBRATE_AIR:
@@ -260,6 +265,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         return; // The message is a duplicate, don't send it again
       } else {
         Serial.printf("relate broadcast %s from %s\n", payload.msg, payload.name);
+        payload.msgId = generateMessageHash(payload);
         esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       }
     }

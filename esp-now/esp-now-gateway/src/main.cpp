@@ -101,10 +101,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.printf("%d, %u\n", len, mac);
   String response = "";
   if(payload.task == PING) {
+    // TODO: check if it's already seen
     Serial.println("Ping: " + payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
     Serial.println();
     response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
   } else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT) {
+    // TODO: check if it's already seen
     Serial.println("Query: " + payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
     Serial.println();
     response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
@@ -192,9 +194,9 @@ void pingESP() {
     //payload.senderAddress = hostMac;
     //payload.task = PING;
     //sprintf(payload.msg, "ping from %s", DEVICE_NAME.c_str());                 
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME);
-  Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
     //stringToInt(gatewayReceiverMac, tmpAddress);
+    setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME);
+    Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
     esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
   }
   if(success) {
