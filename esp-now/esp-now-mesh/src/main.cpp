@@ -40,37 +40,6 @@ void moistureJson() {
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
-uint32_t generateMessageHash(const struct_message &msg) {
-    String combined = String(msg.senderAddress) + String(msg.type) + String(millis());
-    uint32_t hash = 0;
-
-    for (unsigned int i = 0; i < combined.length(); i++) {
-        hash = hash * 31 + combined[i];
-    }
-
-    return hash;
-}
-
-#define MESSAGE_ID_BUFFER_SIZE 100
-
-uint32_t messageIDBuffer[MESSAGE_ID_BUFFER_SIZE];
-uint16_t messageIDBufferIndex = 0;
-
-bool isMessageSeen(uint32_t messageID) {
-  // Check if the message ID is already in the buffer
-  for (uint16_t i = 0; i < MESSAGE_ID_BUFFER_SIZE; i++) {
-    if (messageIDBuffer[i] == messageID) {
-      return true; // The message has been seen before
-    }
-  }
-
-  // The message is new, add it to the buffer
-  messageIDBuffer[messageIDBufferIndex] = messageID;
-  messageIDBufferIndex = (messageIDBufferIndex + 1) % MESSAGE_ID_BUFFER_SIZE;
-
-  return false; // The message has not been seen before
-}
-
 String saveJson() {
   String msg = "";
   File configFile = SPIFFS.open("/config.json", "w+"); 
@@ -127,14 +96,11 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
-  if (isMessageSeen(payload.msgId)) {
-        Serial.println("Message already seen, ignoring...");
-        return; // The message is a duplicate, don't send it again
-    }
   Serial.print("Bytes received: ");
   Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.moisture, payload.msg);
   Serial.printf("=> %s, %s, %s\n", payload.hostAddress, hostMac, payload.senderAddress);
   Serial.println("------");
+
   if(payload.hostAddress == hostMac) {
     Serial.println("processing...");
     switch(payload.task) {
@@ -204,19 +170,19 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       break;
       case PING:
         payload = struct_message(); 
-        payload.type = PING;
-        payload.task = RELATE_MESSAGE_UPSTREAM;
-        payload.senderAddress = hostMac;
-        payload.hostAddress = receiverMac;
+        payload.type = BROADCAST;
+        payload.task = PING;
+        //payload.senderAddress = hostMac;
+        //payload.hostAddress = receiverMac;
         payload.name = DEVICE_NAME;
         payload.id = DEVICE_ID;
-        stringToInt(receiverMac, tmpAddress);
-        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+        //stringToInt(receiverMac, tmpAddress);
+        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case QUERY:
         payload = struct_message(); 
-        payload.type = QUERY_RESULT;
-        payload.task = RELATE_MESSAGE_UPSTREAM;
+        payload.type = BROADCAST;
+        payload.task = QUERY_RESULT;
         payload.senderAddress = hostMac;
         payload.hostAddress = receiverMac;
         payload.name = DEVICE_NAME;
@@ -224,7 +190,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         payload.espInterval = espInterval;
         sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
         Serial.println(payload.msg);
-        espNowSend(receiverMac, payload);
+        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case CALIBRATE_AIR:
       case CALIBRATE_WATER:
@@ -235,8 +201,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         }
         saveJson();
         payload = struct_message(); 
-        payload.type = CALIBRATE_RESULT;
-        payload.task = RELATE_MESSAGE_UPSTREAM;
+        payload.type = BROADCAST;
+        payload.task = CALIBRATE_RESULT;
         payload.senderAddress = hostMac;
         payload.hostAddress = receiverMac;
         payload.name = DEVICE_NAME;
@@ -245,7 +211,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
         //setPayload(payload, DEVICE_ID, DEVICE_NAME, receiverMac, hostMac, "", RELATE_MESSAGE_UPSTREAM, CALIBRATE_RESULT, "");
         sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-        espNowSend(receiverMac, payload);
+        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       break;
       case RELATE_MESSAGE:
         Serial.printf("Relate %s message\n", payload.name);
@@ -288,11 +254,14 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       Serial.printf("send ustream to %s from %s\n", receiverMac, payload.name);
       stringToInt(receiverMac, tmpAddress);
       esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-
-    } else {
-      Serial.printf("send downstream to %s from %s\n", senderMac, payload.name);
-      stringToInt(senderMac, tmpAddress);
-      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
+    } else if(payload.type == BROADCAST) {
+      if (isMessageSeen(payload.msgId)) {
+        Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
+        return; // The message is a duplicate, don't send it again
+      } else {
+        Serial.printf("relate broadcast %s from %s\n", payload.msg, payload.name);
+        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+      }
     }
   }
 }
@@ -386,6 +355,7 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,
   esp_now_register_send_cb(OnDataSent);
 
   addPeer(receiverAddress);
+  addPeer(broadcastAddress);
   if(senderMac.length() == 12) {
     stringToInt(senderMac, senderAddress);
     addPeer(senderAddress);
@@ -402,15 +372,10 @@ void loop() {
   payload.senderAddress = hostMac;
   payload.espInterval = espInterval;
   Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
-  if(payload.id > 1) {
-    // TODO:  need a better way to identify leader vs workers
-    payload.task = RELATE_MESSAGE;
-  } else {
-    payload.task = NO_TASK;
-  }
+  payload.type = BROADCAST;
   payload.moisture = moistureLevel;
   payload.msgId = generateMessageHash(payload);
-  esp_err_t result = esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
+  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
 
   delay(espInterval);
 }
