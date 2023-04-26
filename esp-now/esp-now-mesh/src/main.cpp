@@ -14,7 +14,7 @@ int soilMoistureValue = 0;
 float soilmoisturepercent = 0;
 const char* fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
-int espInterval=30000; //interval for reading data
+int espInterval=80000; //interval for reading data
 
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
@@ -62,30 +62,6 @@ String saveJson() {
   }
   return msg;
 }
-void resetPayload(struct_message payload) {
-  payload = struct_message();
-  payload.id = DEVICE_ID;
-  payload.name = DEVICE_NAME;
-  payload.hostAddress = hostMac;
-}
-void resetPayloadTask(struct_message payload, int task, String msg="", String moisture="") {
-  resetPayload(payload);
-  payload.task = task;
-  sprintf(payload.msg, "%s", msg.c_str());          
-}
-void updateDeviceReceiver(struct_message payload) {
-  deletePeer(receiverAddress);
-  receiverMac = payload.receiverAddress;
-  stringToInt(receiverMac, receiverAddress);
-  addPeer(receiverAddress);
-  Serial.printf("registering...%s, %d", payload.name, payload.id);
-  DEVICE_ID = payload.id;
-  DEVICE_NAME = payload.name;
-  saveJson();
-  // reset payload
-  resetPayloadTask(payload, CONNECT_WITH_ME);
-  esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
-}
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.printf("Last Packet Send Status: %u, %s\t", receiverAddress, hostMac);
@@ -97,198 +73,91 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.moisture, payload.msg);
-  Serial.printf("=> %s, %s, %s\n", payload.hostAddress, hostMac, payload.senderAddress);
+  Serial.printf("%d from %s, %s, %d, %d, %s\n", len, payload.name, payload.hostAddress, payload.task, payload.type, payload.msg);
+  Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------");
 
-  if(payload.hostAddress == hostMac) {
-    Serial.println("processing...");
-    switch(payload.task) {
-      case REGISTER_DEVICE:
-        if(payload.receiverAddress != receiverMac) {
-          deletePeer(receiverAddress);
-          receiverMac = payload.receiverAddress;
-          stringToInt(receiverMac, receiverAddress);
-          addPeer(receiverAddress);
-          Serial.printf("registering...%s, %d\n", payload.name, payload.id);
-          DEVICE_ID = payload.id;
+  if (isMessageSeen(payload.msgId)) {
+    Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
+    return; // The message is a duplicate, don't send it again
+  } else {
+    if(payload.hostAddress == hostMac) {
+      Serial.println("processing...");
+      switch(payload.task) {
+        case PING:
+          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval);
+          Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
+          payload.msgId = generateMessageHash(payload);
+          esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+        break;
+        case QUERY:
+          //payload = struct_message(); 
+          //payload.type = BROADCAST;
+          //payload.task = QUERY_RESULT;
+          //payload.senderAddress = hostMac;
+          //payload.hostAddress = receiverMac;
+          //payload.name = DEVICE_NAME;
+          //payload.id = DEVICE_ID;
+          //payload.espInterval = espInterval;
+          char msg[80];
+          sprintf(msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+          Serial.println(msg);
+          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval);
+          payload.msgId = generateMessageHash(payload);
+          esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+        break;
+        case CALIBRATE_AIR:
+        case CALIBRATE_WATER:
+          if(payload.task == CALIBRATE_AIR) {
+            calibrateAir(airValue, sensorPin);
+          } else {
+            calibrateWater(waterValue, sensorPin);
+          }
+          saveJson();
+          payload = struct_message(); 
+          payload.type = BROADCAST;
+          payload.task = CALIBRATE_RESULT;
+          payload.senderAddress = hostMac;
+          payload.hostAddress = receiverMac;
+          payload.name = DEVICE_NAME;
+          payload.id = DEVICE_ID;
+          sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+          esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+        break;
+        case UPDATE_WIFI_CHANNEL:
+        break;
+        case UPDATE_DEVICE_NAME:
+          Serial.printf("update device name: %s\n", payload.name);
           DEVICE_NAME = payload.name;
           saveJson();
-          // reset payload
-          resetPayloadTask(payload, CONNECT_WITH_ME);
-          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
-        }
-      break;
-      case UPDATE_RECEIVER_ADDR:
-        if(payload.receiverAddress != receiverMac) {
-          deletePeer(receiverAddress);
-          receiverMac = payload.receiverAddress;
-          stringToInt(receiverMac, receiverAddress);
+        break;
+        case UPDATE_DEVICE_ID:
+          Serial.printf("update device id: %d\n", payload.id);
+          DEVICE_ID = payload.id;
           saveJson();
-          //std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(receiverAddress));
-          addPeer(receiverAddress);
-          Serial.printf("connect with me...%s, %d", payload.name, payload.id);
-          // reset payload
-          //payload = struct_message();
-          //payload.id = DEVICE_ID;
-          //payload.name = DEVICE_NAME;
-          //payload.hostAddress = hostMac;
-          //payload.task = CONNECT_WITH_ME;          
-          //esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
-          resetPayloadTask(payload, CONNECT_WITH_ME);
-          esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
-        }
-      break;
-      case CONNECT_WITH_ME:
-        Serial.printf("Connecting %s with sender %s\n", DEVICE_NAME, payload.senderAddress);
-        stringToInt(senderMac, senderAddress);
-        deletePeer(senderAddress);
-        senderMac = payload.senderAddress;
-        stringToInt(senderMac, senderAddress);
-        addPeer(senderAddress);
-        saveJson();
-        payload = struct_message();
-        payload.task = CONNECT_WITH_YOU;
-        payload.hostAddress = senderMac;
-        payload.receiverAddress = hostMac;
-        esp_now_send(senderAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case CONNECT_WITH_YOU:
-        Serial.printf("Connecting %s with receiver %s\n", DEVICE_NAME, payload.receiverAddress);
-        stringToInt(receiverMac, receiverAddress);
-        deletePeer(receiverAddress);
-        receiverMac = payload.receiverAddress;
-        stringToInt(receiverMac, receiverAddress);
-        addPeer(receiverAddress);
-        saveJson();
-        payload = struct_message();
-        payload.task = MESSAGE_ONLY;
-        payload.hostAddress = receiverMac;
-        sprintf(payload.msg, "We are connected!");
-        //resetPayloadTask(payload, MESSAGE_ONLY, "We are connected!");
-        esp_now_send(receiverAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case PING:
-        //payload = struct_message(); 
-        //payload.type = BROADCAST;
-        //payload.task = PING;
-        ////payload.senderAddress = hostMac;
-        ////payload.hostAddress = receiverMac;
-        //payload.name = DEVICE_NAME;
-        //payload.id = DEVICE_ID;
-        ////stringToInt(receiverMac, tmpAddress);
-        //esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING, BROADCAST, DEVICE_NAME);
-        Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
-        payload.msgId = generateMessageHash(payload);
-        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case QUERY:
-        payload = struct_message(); 
-        payload.type = BROADCAST;
-        payload.task = QUERY_RESULT;
-        payload.senderAddress = hostMac;
-        payload.hostAddress = receiverMac;
-        payload.name = DEVICE_NAME;
-        payload.id = DEVICE_ID;
-        payload.espInterval = espInterval;
-        sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-        Serial.println(payload.msg);
-        payload.msgId = generateMessageHash(payload);
-        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case CALIBRATE_AIR:
-      case CALIBRATE_WATER:
-        if(payload.task == CALIBRATE_AIR) {
-          calibrateAir(airValue, sensorPin);
+        break;
+        case UPDATE_ESP_INTERVAL:
+          Serial.printf("update esp_interval: %d\n", payload.espInterval);
+          espInterval = payload.espInterval;
+          saveJson();
+        break;
+        default:
+          Serial.println("Nothing to do.");
+        break;
+      }
+    } else {
+      if(payload.type == BROADCAST) {
+        if (isMessageSeen(payload.msgId)) {
+          Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
+          return; // The message is a duplicate, don't send it again
         } else {
-          calibrateWater(waterValue, sensorPin);
+          Serial.printf("relate broadcast %s from %s\n", payload.msg, payload.name);
+          esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         }
-        saveJson();
-        payload = struct_message(); 
-        payload.type = BROADCAST;
-        payload.task = CALIBRATE_RESULT;
-        payload.senderAddress = hostMac;
-        payload.hostAddress = receiverMac;
-        payload.name = DEVICE_NAME;
-        payload.id = DEVICE_ID;
-//void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
-        // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
-        //setPayload(payload, DEVICE_ID, DEVICE_NAME, receiverMac, hostMac, "", RELATE_MESSAGE_UPSTREAM, CALIBRATE_RESULT, "");
-        sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-        esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case RELATE_MESSAGE:
-        Serial.printf("Relate %s message\n", payload.name);
-        payload.hostAddress = receiverMac;
-        stringToInt(receiverMac, tmpAddress);
-        Serial.printf("%d from %s, %d, %d, %d, %s\n", len, payload.name, payload.task, payload.espInterval, payload.hostAddress, receiverMac);
-        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case MESSAGE_ONLY:
-        Serial.printf("fyi: %s, %s\n", payload.msg, payload.senderAddress);
-      break;
-      case RELATE_MESSAGE_UPSTREAM:
-        Serial.printf("send upstream to %s from %s\n", receiverMac, payload.name);
-        stringToInt(receiverMac, tmpAddress);
-        esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-      break;
-      case UPDATE_WIFI_CHANNEL:
-      break;
-      case UPDATE_DEVICE_NAME:
-        Serial.printf("update device name: %s\n", payload.name);
-        DEVICE_NAME = payload.name;
-        saveJson();
-      break;
-      case UPDATE_DEVICE_ID:
-        Serial.printf("update device id: %d\n", payload.id);
-        DEVICE_ID = payload.id;
-        saveJson();
-      break;
-      case UPDATE_ESP_INTERVAL:
-        Serial.printf("update esp_interval: %d\n", payload.espInterval);
-        espInterval = payload.espInterval;
-        saveJson();
-      break;
-      default:
-        Serial.println("Nothing to do.");
-      break;
-    }
-  } else {
-    if(payload.task == RELATE_MESSAGE_UPSTREAM) {
-      Serial.printf("send ustream to %s from %s\n", receiverMac, payload.name);
-      stringToInt(receiverMac, tmpAddress);
-      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-    } else if(payload.type == BROADCAST) {
-      if (isMessageSeen(payload.msgId)) {
-        Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
-        return; // The message is a duplicate, don't send it again
-      } else {
-        Serial.printf("relate broadcast %s from %s\n", payload.msg, payload.name);
-        payload.msgId = generateMessageHash(payload);
-        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       }
     }
   }
 }
-
-//void dataReceived(uint8_t *senderMac, uint8_t *data, uint8_t dataLength) {
-//char macStr[18];
-//dataPacket packet;
-
-//snprintf(macStr, sizeof(macStr), “%02x:%02x:%02x:%02x:%02x:%02x”, senderMac[0], senderMac[1], senderMac[2], senderMac[3], senderMac[4], senderMac[5]);
-//memcpy(&myData, data, sizeof(myData)); // copy redeived data into myData and printit
-//Serial.println();
-//Serial.print(“Received data from: “);
-//Serial.println(macStr);
-//Serial.print(“data: “);
-//Serial.println(myData.d);
-
-//memcpy(&packet, data, sizeof(packet));
-
-//// Serial.print(“sensor1: “);
-
-//}
 
 void setup() {
   int waitCount = 0;

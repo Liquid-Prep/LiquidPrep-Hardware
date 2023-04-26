@@ -100,22 +100,24 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.print("Bytes received: ");
   Serial.printf("%d, %u\n", len, mac);
   String response = "";
-  if(payload.task == PING) {
-    // TODO: check if it's already seen
-    Serial.println("Ping: " + payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
-    Serial.println();
-    response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
-  } else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT) {
-    // TODO: check if it's already seen
-    Serial.println("Query: " + payload.name + ", " + payload.id + ", " + payload.type + ", " + payload.task);
-    Serial.println();
-    response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
+  if(isMessageSeen(payload.msgId)) {
+    Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
   } else {
-    Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
-    Serial.println();
-    response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
-  }
-  sendData(response);
+    if(payload.task == PING_BACK) {
+      Serial.printf("Ping: %d, %s, %d, %d\n", payload.msgId, payload.name, payload.type, payload.task);
+      Serial.println();
+      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
+    } else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT) {
+      Serial.printf("Query: %d, %s, %d, %d\n", payload.msgId, payload.name, payload.type, payload.task);
+      Serial.println();
+      response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
+    } else {
+      Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
+      Serial.println();
+      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
+    }
+    sendData(response);
+  }  
 }
 
 String moistureJson() {
@@ -149,11 +151,12 @@ void calibrate() {
       }
       saveJson();
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-      String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(CALIBRATE_RESULT) + "}";
+      String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(CALIBRATE_RESULT) + "}";
       sendData(response);
     } else {
       int task = Server.arg(0) == "air_value" ? CALIBRATE_AIR : CALIBRATE_WATER;
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "");
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval);
+      payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
     }
   }
@@ -167,16 +170,11 @@ void queryESP() {
     struct_message payload = struct_message();
     if(targetHostAddr == hostMac) {
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-      String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(QUERY_RESULT) + "}";
+      String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(QUERY_RESULT) + "}";
       sendData(response);
     } else {
-      //payload.id = DEVICE_ID;
-      //payload.name = DEVICE_NAME;
-      //payload.hostAddress = targetHostAddr;
-      //payload.senderAddress = hostMac;
-      //payload.task = QUERY;
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "");
-      //stringToInt(gatewayReceiverMac, tmpAddress);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "", espInterval);
+      payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
     }  
   }
@@ -188,16 +186,17 @@ void pingESP() {
     String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
     success = true;
     struct_message payload = struct_message();
-    //payload.id = DEVICE_ID;
-    //payload.name = DEVICE_NAME;
-    //payload.hostAddress = targetHostAddr;
-    //payload.senderAddress = hostMac;
-    //payload.task = PING;
-    //sprintf(payload.msg, "ping from %s", DEVICE_NAME.c_str());                 
-    //stringToInt(gatewayReceiverMac, tmpAddress);
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME);
-    Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
-    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+    if(targetHostAddr == hostMac) {
+      sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+      String response = "{\"mac\": \"" + hostMac + "\", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(PING_BACK) + "}";
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval);
+      sendData(response);
+    } else {
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME, espInterval);
+      payload.msgId = generateMessageHash(payload);
+      Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
+      esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+    }
   }
   if(success) {
     Server.send(200, "text/plain", "Ping!");
@@ -205,131 +204,29 @@ void pingESP() {
     Server.send(400, "text/plain", "Invalid request params, correct params: host_addr=...");
   }  
 }
-void configureGateway() {
-  struct_message payload = struct_message();
-  boolean success = false;  
-  if(Server.args() == 4 && Server.argName(0) == "wsserver" && Server.argName(1) == "wsport" && Server.argName(2) == "sender_addr" && Server.argName(3) == "pin") {
-    wsserver = removeFromString(Server.arg(0), (char *)":");
-    wsport = atoi(removeFromString(Server.arg(1), (char *)":").c_str());
-    gatewayReceiverMac = removeFromString(Server.arg(2), (char *)":");
-    sensorPin = atoi(removeFromString(Server.arg(3), (char *)":").c_str());
-  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,gatewayReceiverMac,senderMac);
-    saveJson();
-    success = true;
-  }  
-  if(success) {
-    Server.send(200, "text/plain", "ESP-NOW Gateway configured!");
-    delay(3000);
-    restartESP();
-  } else {
-    Server.send(400, "text/plain", "Invalid request params, correct params: wsserver=...&wsport=...&sender_addr=...&pin=...");
-  }  
-
-}
-void registerESP32() {
-  struct_message payload = struct_message();
-  boolean success = false;  
-  if(Server.args() == 4 && Server.argName(0) == "host_addr" && Server.argName(1) == "recv_addr" && Server.argName(2) == "device_id" && Server.argName(3) == "device_name") {
-    String hostAddr = removeFromString(Server.arg(0), (char *)":");
-    String taskValue = removeFromString(Server.arg(1), (char *)":");
-    String deviceId = removeFromString(Server.arg(2), (char *)":");
-    String deviceName = removeFromString(Server.arg(3), (char *)":");
-    if(hostAddr != hostMac) {
-      success = true;
-      payload.id = atoi(deviceId.c_str());
-      payload.name = deviceName;
-      payload.task = REGISTER_DEVICE;
-      payload.hostAddress = hostAddr;
-      payload.receiverAddress = taskValue;
-      stringToInt(hostAddr, tmpAddress);
-      if(esp_now_is_peer_exist(tmpAddress)) {
-        Serial.println("found peer");
-      } else {
-        Serial.println("peer not found");
-        addPeer(tmpAddress);  
-      }
-      esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
-    } else {
-      Server.send(200, "text/plain", "This is esp gateway, can't register itself!");
-    }
-  }
-  if(success) {
-    Server.send(200, "text/plain", "Device registered!");
-  } else {
-    Server.send(400, "text/plain", "Invalid request params, correct params: host_addr=...&recv_addr=...&device_id=...&device_name=...");
-  }  
-}
-void connectGateway() {
-  boolean success = false;
-  if(Server.args() == 1 && Server.argName(0) == "sender_addr") {
-    String senderAddr = removeFromString(Server.arg(0), (char *)":");
-    stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
-    deletePeer(gatewayReceiverAddress);
-    gatewayReceiverMac = senderAddr;
-    stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
-    addPeer(gatewayReceiverAddress);
-    saveJson();
-
-    struct_message payload = struct_message();
-    payload.task = MESSAGE_ONLY;
-    payload.hostAddress = receiverMac;
-    sprintf(payload.msg, "gateways are connected");  
-    Serial.printf("connecting gateway with %s\n", gatewayReceiverMac);
-    esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
-    success = true;
-  }
-  if(success) {
-    Server.send(200, "text/plain", "Gateways connected!");
-  } else {
-    Server.send(400, "text/plain", "Invalid request params, provide mac address, ex: sender_addr=40:91:51:9F:30:AC");
-  }  
-}
-void connectTwoESP32() {
-  boolean success = false;
-  stringToInt(gatewayReceiverMac, gatewayReceiverAddress);
-  if(!esp_now_is_peer_exist(gatewayReceiverAddress)) {
-    Server.send(200, "text/plain", "Gateways are not connected!  Please connect gateways first.  Ex: connect_gateways?sender_addr=40:91:51:9F:30:AC");
-  } else {
-    if(Server.args() == 2 && Server.argName(0) == "sender_addr" && Server.argName(1) == "recv_addr") {
-      String senderAddr = removeFromString(Server.arg(0), (char *)":");
-      String receiverAddr = removeFromString(Server.arg(1), (char *)":");
-      Serial.printf("Broacast to: %s, %u\n", receiverMac, receiverAddress);
-      struct_message payload = struct_message();
-      payload.task = CONNECT_WITH_ME;
-      payload.hostAddress = receiverAddr;
-      payload.senderAddress = senderAddr;
-      esp_err_t result = esp_now_send(gatewayReceiverAddress, (uint8_t *) &payload, sizeof(payload));
-      //saveJson();
-      success = true;
-    }
-    if(success) {
-      Server.send(200, "text/plain", "They are connected!");
-    } else {
-      Server.send(400, "text/plain", "Invalid request params, provide mac address, ex: sender_addr=40:91:51:9F:30:AC&recv_addr=40:91:51:9F:30:AC");
-    }  
-  } 
-}
 void updateESP32() {
   boolean success = false;
   if(Server.args() == 2) {
     String hostAddr = removeFromString(Server.arg(0), (char *)":");
     String taskValue = removeFromString(Server.arg(1), (char *)":");
 
-    stringToInt(hostAddr, tmpAddress);
-    Serial.printf("%s, %u\n", hostAddr, tmpAddress);
-    if(Server.argName(0) == "host_addr" && tmpAddress == hostAddress) {
-      stringToInt(taskValue, tmpAddress);
-      if(Server.argName(1) == "recv_addr" && tmpAddress != gatewayReceiverAddress) {
-        deletePeer(gatewayReceiverAddress);
-        std::copy(std::begin(tmpAddress), std::end(tmpAddress), std::begin(gatewayReceiverAddress));
-        addPeer(gatewayReceiverAddress);
-        success = true;
-
-        Serial.print("Param name: ");
-        Serial.println(Server.argName(0));
-        Serial.print("Param value: ");
-        Serial.println(Server.arg(0));
-        Serial.println("------");
+    Serial.printf("%s, %s, %u, %u\n", hostAddr, hostMac);
+    if(Server.argName(0) == "host_addr" && hostAddr == hostMac) {
+      String task = Server.argName(1);
+      if(task == "esp_interval") {
+        int ms = atoi(taskValue.c_str());
+        Serial.printf("update esp_interval: %d\n", ms);
+        espInterval = ms;
+        saveJson();
+      } else if(task == "device_name") {
+        Serial.printf("update device name: %s\n", taskValue);
+        DEVICE_NAME = taskValue;
+        saveJson();
+      } else if(task == "device_id") {
+        int id = atoi(taskValue.c_str());
+        Serial.printf("update device id: %d\n", id);
+        DEVICE_ID = id;
+        saveJson();
       }
     } else {
       success = true;
@@ -351,13 +248,7 @@ void updateESP32() {
         payload.task = UPDATE_DEVICE_ID;
         payload.id = atoi(taskValue.c_str());
       }
-      //stringToInt(hostAddr, tmpAddress);
-      //if(esp_now_is_peer_exist(tmpAddress)) {
-      //  Serial.println("found peer");
-      //} else {
-      //  Serial.println("peer not found");
-      //  addPeer(tmpAddress);  
-      //}
+      payload.msgId = generateMessageHash(payload);
       Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
       esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));      
     }
@@ -512,10 +403,6 @@ void setup() {
   Server.on("/moisture", moistureJson);
   Server.on("/moisture.json", moistureJson);
   Server.on("/update", updateESP32);
-  Server.on("/register", registerESP32);
-  Server.on("/connect_esp32", connectTwoESP32);
-  Server.on("/connect_gateway", connectGateway);
-  Server.on("/configure_gateway", configureGateway);
   Server.on("/reboot_gateway", restartESP);
   Server.on("/ping", pingESP);
   Server.on("/query", queryESP);

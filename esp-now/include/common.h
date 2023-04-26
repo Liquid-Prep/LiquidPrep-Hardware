@@ -26,6 +26,7 @@ enum Task {
   CONNECT_WITH_ME,
   MESSAGE_ONLY,
   PING,
+  PING_BACK,
   QUERY,
   QUERY_RESULT,
   CONNECT_WITH_YOU,
@@ -167,7 +168,7 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
@@ -177,6 +178,7 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.receiverAddress = receiver;
   payload.task = task;
   payload.type = type;
+  payload.espInterval = interval;
   sprintf(payload.msg, "%s", msg.c_str());
 }
 void espNowSend(String receiver, struct_message payload) {
