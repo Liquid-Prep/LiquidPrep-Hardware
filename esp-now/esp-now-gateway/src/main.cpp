@@ -438,9 +438,9 @@ void setup() {
   }
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_register_send_cb(OnDataSent);
-  Serial.printf("Adding peer: %s, %u\n", receiverMac, gatewayReceiverAddress);
+  Serial.printf("Adding peer: %u\n", broadcastAddress);
+  addPeer(gatewayReceiverAddress);  
   addPeer(broadcastAddress);  
-  //addPeer(gatewayReceiverAddress);  
 }
 
 void loop() {

@@ -147,13 +147,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       }
     } else {
       if(payload.type == BROADCAST) {
-        if (isMessageSeen(payload.msgId)) {
-          Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
-          return; // The message is a duplicate, don't send it again
-        } else {
-          Serial.printf("relate broadcast %s from %s\n", payload.msg, payload.name);
-          esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-        }
+        Serial.printf("relate broadcast %d from %s\n", payload.msgId, payload.name);
+        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       }
     }
   }
