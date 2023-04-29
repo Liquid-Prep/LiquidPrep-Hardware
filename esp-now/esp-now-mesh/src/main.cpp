@@ -75,7 +75,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.print("Bytes received: ");
   Serial.printf("%d from %s, %s, %d, %d, %s\n", len, payload.name, payload.hostAddress, payload.task, payload.type, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
-  Serial.println("------");
+  Serial.println("------\n");
 
   if (isMessageSeen(payload.msgId)) {
     Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
@@ -83,9 +83,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   } else {
     if(payload.hostAddress == hostMac) {
       Serial.println("processing...");
+      int from = payload.from == WEB_REQUEST ? WEB_REQUEST_RESULT : NO_TASK;
       switch(payload.task) {
         case PING:
-          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval);
+          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, from);
           Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
           payload.msgId = generateMessageHash(payload);
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
@@ -102,7 +103,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           char msg[80];
           sprintf(msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
           Serial.println(msg);
-          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval);
+          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from);
           payload.msgId = generateMessageHash(payload);
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         break;
@@ -117,6 +118,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           payload = struct_message(); 
           payload.type = BROADCAST;
           payload.task = CALIBRATE_RESULT;
+          payload.from = from;
           payload.senderAddress = hostMac;
           payload.hostAddress = receiverMac;
           payload.name = DEVICE_NAME;
@@ -238,10 +240,11 @@ void loop() {
   struct_message payload = struct_message();
   payload.id = DEVICE_ID;
   payload.name = DEVICE_NAME;
-  payload.hostAddress = receiverMac;
+  payload.hostAddress == hostMac;
+  //payload.hostAddress = receiverMac;
   payload.senderAddress = hostMac;
   payload.espInterval = espInterval;
-  Serial.printf("info: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
+  Serial.printf("\ninfo: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
   payload.type = BROADCAST;
   payload.moisture = moistureLevel;
   payload.msgId = generateMessageHash(payload);

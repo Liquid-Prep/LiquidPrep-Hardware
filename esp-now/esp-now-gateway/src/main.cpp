@@ -106,15 +106,15 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     if(payload.task == PING_BACK) {
       Serial.printf("Ping: %d, %s, %d, %d\n", payload.msgId, payload.name, payload.type, payload.task);
       Serial.println();
-      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
+      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"from\": " + String(WEB_REQUEST_RESULT) + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
     } else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT) {
       Serial.printf("Query: %d, %s, %d, %d\n", payload.msgId, payload.name, payload.type, payload.task);
       Serial.println();
-      response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
+      response = "{\"mac\": \"" + payload.senderAddress + + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + ", \"from\": " + String(WEB_REQUEST_RESULT) + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
     } else {
       Serial.println(payload.name + ", " + payload.id + ", " + payload.moisture + ", " + payload.task);
       Serial.println();
-      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
+      response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + ", \"from\": " + String(WEB_REQUEST_RESULT) + ", \"name\": \"" + payload.name + "\", \"moisture\": " + payload.moisture + "}";
     }
     sendData(response);
   }  
@@ -143,6 +143,7 @@ void calibrate() {
     success = true;
     String targetHostAddr = removeFromString(Server.arg(1), (char *)":");
     struct_message payload = struct_message();
+    int from = Server.arg(2) == "true" && Server.argName(2) == "web_request" ? WEB_REQUEST : NO_TASK;
     if(targetHostAddr == hostMac) {
       if(Server.arg(0) == "air_value") {
         calibrateAir(airValue, sensorPin);
@@ -151,11 +152,11 @@ void calibrate() {
       }
       saveJson();
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
-      String response = "{\"mac\": \"" + hostMac + + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(CALIBRATE_RESULT) + "}";
+      String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"from\": " + String(WEB_REQUEST_RESULT) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(CALIBRATE_RESULT) + "}";
       sendData(response);
     } else {
       int task = Server.arg(0) == "air_value" ? CALIBRATE_AIR : CALIBRATE_WATER;
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval, from);
       payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
     }
@@ -168,12 +169,13 @@ void queryESP() {
     success = true;
     String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
     struct_message payload = struct_message();
+    payload.from = Server.arg(1) == "true" && Server.argName(1) == "web_request" ? WEB_REQUEST : NO_TASK;
     if(targetHostAddr == hostMac) {
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(QUERY_RESULT) + "}";
       sendData(response);
     } else {
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "", espInterval);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "", espInterval, payload.from);
       payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
     }  
@@ -186,13 +188,14 @@ void pingESP() {
     String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
     success = true;
     struct_message payload = struct_message();
+    int from = Server.arg(1) == "true" && Server.argName(1) == "web_request" ? WEB_REQUEST : NO_TASK;
     if(targetHostAddr == hostMac) {
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"id\": " + String(DEVICE_ID) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(PING_BACK) + "}";
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, from);
       sendData(response);
     } else {
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME, espInterval);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME, espInterval, from);
       payload.msgId = generateMessageHash(payload);
       Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));

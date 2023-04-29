@@ -34,7 +34,8 @@ enum Task {
   CALIBRATE_WATER,
   CALIBRATE_RESULT,
   BROADCAST,
-  WEB_REQUEST
+  WEB_REQUEST,
+  WEB_REQUEST_RESULT
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -82,6 +83,7 @@ typedef struct struct_message {
   char msg[80];
   int task;
   int type;
+  int from;
   uint32_t  msgId;
 } struct_message;
 
@@ -169,7 +171,7 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
@@ -180,6 +182,7 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.task = task;
   payload.type = type;
   payload.espInterval = interval;
+  payload.from = from;
   sprintf(payload.msg, "%s", msg.c_str());
 }
 void espNowSend(String receiver, struct_message payload) {
