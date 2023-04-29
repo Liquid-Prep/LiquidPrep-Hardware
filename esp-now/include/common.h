@@ -33,7 +33,8 @@ enum Task {
   CALIBRATE_AIR,
   CALIBRATE_WATER,
   CALIBRATE_RESULT,
-  BROADCAST
+  BROADCAST,
+  WEB_REQUEST
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
