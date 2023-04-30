@@ -29,7 +29,11 @@ if(task != 'help') {
       process.exit(0);  
     }
     if(task == 'updateName' && !deviceName || task == 'updateInterval' && !interval) {
-      console.log(`specify --gateway=<gateway_url> --mac_address=<esp_mac_address> --interval=<interval>`);
+      if(task == 'updateInterval') {
+        console.log(`specify --gateway=<gateway_url> --mac_address=<esp_mac_address> --interval=<interval>`);
+      } else {
+        console.log(`specify --gateway=<gateway_url> --mac_address=<esp_mac_address> --device_name=<device name>`);
+      }
       process.exit(0);
     }
   } else if(task != 'getSerialPorts' && !port) {
@@ -127,7 +131,7 @@ let esptool = {
   },
   updateName: () => {
     return new Observable((observer) => {
-      let arg = `curl ${gateway}/update\\?host_addr\\=${macAddress}\\&device_name\\=${devicName}`;
+      let arg = `curl ${gateway}/update\\?host_addr\\=${macAddress}\\&device_name\\=${deviceName}`;
       esptool.shell(arg,`\ndone updating device name to ${deviceName} for ${macAddress}\n`, `\nfailed to update device name for ${macAddress}\n`)
       .subscribe(() => {
         observer.next();
@@ -136,7 +140,7 @@ let esptool = {
     });  
   },
   updateInterval: () => {
-    return new Observable((observer) => {
+    return new Observable((observer) => {e
       let arg = `curl ${gateway}/update\\?host_addr\\=${macAddress}\\&esp_interval\\=${interval}`;
       esptool.shell(arg,`\ndone updating interval to ${interval} for ${macAddress}\n`, `\nfailed to update interval for ${macAddress}\n`)
       .subscribe(() => {

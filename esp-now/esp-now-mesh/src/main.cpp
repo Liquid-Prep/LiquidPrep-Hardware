@@ -4,7 +4,7 @@
 #include <esp_wifi.h>
 
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_1";       // set device name
+String DEVICE_NAME = "ZONE_2";       // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -73,7 +73,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.printf("%d from %s, %s, %d, %d, %s\n", len, payload.name, payload.hostAddress, payload.task, payload.type, payload.msg);
+  Serial.printf("%d, moisture: %d from %s, %s, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------\n");
 
@@ -149,7 +149,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       }
     } else {
       if(payload.type == BROADCAST) {
-        Serial.printf("relate broadcast %d from %s\n", payload.msgId, payload.name);
+        Serial.printf("relate broadcast %d from %s, %s\n", payload.msgId, payload.name, payload.senderAddress);
         esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       }
     }
@@ -169,22 +169,25 @@ void setup() {
   if(config) {
     DeserializationError error = deserializeJson(doc, config);
     if(error) {
-      saveJson();
       Serial.println(F("Failed to read file, using default configuration"));
       Serial.println(error.c_str());
       saveJson();
     } else {
       JsonObject obj = doc.as<JsonObject>();
-      airValue = doc["airValue"];
-      waterValue = doc["waterValue"];
-      sensorPin = doc["sensorPin"];
-      DEVICE_ID = obj["deviceId"];
-      DEVICE_NAME = doc["deviceName"].as<String>();
-      espInterval = doc["espInterval"];
-      receiverMac = doc["receiverMac"].as<String>();
-      senderMac = doc["senderMac"].as<String>();
-      stringToInt(receiverMac, receiverAddress);
-      stringToInt(senderMac, senderAddress);
+      if(!doc["deviceName"] || doc["espInterval"] <= 0) {
+        saveJson();  //data corrupted, use default values
+      } else {
+        airValue = doc["airValue"];
+        waterValue = doc["waterValue"];
+        sensorPin = doc["sensorPin"];
+        DEVICE_ID = obj["deviceId"];
+        DEVICE_NAME = doc["deviceName"].as<String>();
+        espInterval = doc["espInterval"];
+        receiverMac = doc["receiverMac"].as<String>();
+        senderMac = doc["senderMac"].as<String>();
+        stringToInt(receiverMac, receiverAddress);
+        stringToInt(senderMac, senderAddress);
+      }
     }
     config.close();
   } else {
@@ -205,11 +208,13 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,
 
 
   WiFi.mode(WIFI_STA);
-//int32_t channel = 1;
-//WiFi.printDiag(Serial); // Uncomment to verify channel number before
-//esp_wifi_set_promiscuous(true);
-//esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-//esp_wifi_set_promiscuous(false);
+  // TODO: get channel programmatically
+  //int32_t channel = getWiFiChannel(WIFI_SSID);
+  int32_t channel = 5;
+  WiFi.printDiag(Serial); // Uncomment to verify channel number before
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
 //WiFi.printDiag(Serial); // Uncomment to verify channel change after  
   WiFi.disconnect();        // we do not want to connect to a WiFi network
 
@@ -226,11 +231,21 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,
 
   esp_now_register_send_cb(OnDataSent);
 
-  addPeer(receiverAddress);
-  addPeer(broadcastAddress);
-  if(senderMac.length() == 12) {
-    stringToInt(senderMac, senderAddress);
-    addPeer(senderAddress);
+  //addPeer(receiverAddress);
+  //Serial.printf("Adding peer: %u\n", broadcastAddress);
+  //addPeer(broadcastAddress);
+
+  // Register peer
+  esp_now_peer_info_t peerInfo = {};
+  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  //peerInfo.ifidx = ESP_IF_WIFI_STA;
+  peerInfo.encrypt = false;
+  // Add peer        
+  if (esp_now_add_peer(&peerInfo) != ESP_OK){
+    Serial.println("Failed to add peer");
+    return;
+  } else {
+    Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
 }
 
@@ -240,12 +255,13 @@ void loop() {
   struct_message payload = struct_message();
   payload.id = DEVICE_ID;
   payload.name = DEVICE_NAME;
-  payload.hostAddress == hostMac;
   //payload.hostAddress = receiverMac;
+  payload.hostAddress = hostMac;
   payload.senderAddress = hostMac;
   payload.espInterval = espInterval;
   Serial.printf("\ninfo: %d, %s, %d, %s, %s, %s\n", espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
   payload.type = BROADCAST;
+  payload.from = NO_TASK;
   payload.moisture = moistureLevel;
   payload.msgId = generateMessageHash(payload);
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));

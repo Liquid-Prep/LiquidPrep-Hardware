@@ -8,6 +8,7 @@
 #define MY_ROLE           ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
 #define RECEIVER_ROLE     ESP_NOW_ROLE_SLAVE              // set the role of the receiver
 #define WIFI_CHANNEL      1
+#define WIFI_SSID         "Your AP"
 
 #define VAL(str) #str
 #define TOSTRING(str) VAL(str)
