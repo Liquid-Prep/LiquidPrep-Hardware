@@ -9,6 +9,7 @@
   "wsserver": "192.168.86.24",
   "wsport": 3000,
   "espInterval": 80000,
+  "wifiChannel": 0,
   "receiverAddress": "",
   "senderAddress": ""
 }

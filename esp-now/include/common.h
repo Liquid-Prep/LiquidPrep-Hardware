@@ -36,7 +36,8 @@ enum Task {
   CALIBRATE_RESULT,
   BROADCAST,
   WEB_REQUEST,
-  WEB_REQUEST_RESULT
+  WEB_REQUEST_RESULT,
+  UPDATE_WIFI_RESULT
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -56,13 +57,13 @@ Task str2enum(const std::string& str) {
 
 uint8_t tmpAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-uint8_t gatewayReceiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
+uint8_t gatewayReceiverAddress[] = {0x78,0x21,0x84,0x7C,0x23,0x14};   // please update this with the MAC address of the receiver
 uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
 uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 String gatewayMac = "7821848C89FC";
-String gatewayReceiverMac = "40:91:51:9F:30:AC";                // mac address of gateway receiver  
+String gatewayReceiverMac = "78:21:84:7C:23:14";                // mac address of gateway receiver  
 String hostMac = "";                           // mac address of this device
 String receiverMac = "7821848C89FC";           // mac address of receiver
 String senderMac = "";                         // mac address of sender
@@ -191,7 +192,7 @@ void espNowSend(String receiver, struct_message payload) {
   esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
 }
 uint32_t generateMessageHash(const struct_message &msg) {
-  String combined = String(msg.senderAddress) + String(msg.type) + String(millis());
+  String combined = String(msg.senderAddress) + String(msg.type) + String(msg.from) + String(millis());
   uint32_t hash = 0;
   for (unsigned int i = 0; i < combined.length(); i++) {
     hash = hash * 31 + combined[i];
