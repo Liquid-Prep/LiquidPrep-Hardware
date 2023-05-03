@@ -97,7 +97,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
   Serial.print("Bytes received: ");
-  Serial.printf("%d, moisture: %d from %s, %s, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.msg);
+  Serial.printf("%d, moisture: %d from %s, %s, %d, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.from, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------\n");
   String response = "";
@@ -105,7 +105,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     Serial.printf("%d from %s, %d Message already seen, ignoring...\n", len, payload.name, payload.task);
   } else {
     String from = "";
-    if(payload.from == WEB_REQUEST) {
+    if(payload.from == WEB_REQUEST_RESULT) {
       from = ", \"from\": " + String(WEB_REQUEST_RESULT);
     }
     if(payload.task == PING_BACK) {

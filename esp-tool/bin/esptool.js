@@ -140,7 +140,7 @@ let esptool = {
     });  
   },
   updateInterval: () => {
-    return new Observable((observer) => {e
+    return new Observable((observer) => {
       let arg = `curl ${gateway}/update\\?host_addr\\=${macAddress}\\&esp_interval\\=${interval}`;
       esptool.shell(arg,`\ndone updating interval to ${interval} for ${macAddress}\n`, `\nfailed to update interval for ${macAddress}\n`)
       .subscribe(() => {

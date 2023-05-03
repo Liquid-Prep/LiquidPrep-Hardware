@@ -115,8 +115,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           //payload.id = DEVICE_ID;
           //payload.espInterval = espInterval;
           char msg[80];
-          sprintf(msg, "%d,%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, wifiChannel, from, senderMac.c_str(), receiverMac.c_str());
-          Serial.println(msg);
+          sprintf(msg, "%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, wifiChannel, senderMac.c_str(), receiverMac.c_str());
+          Serial.printf("msg: %s -> %d", msg, from);
           setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from);
           payload.msgId = generateMessageHash(payload);
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
@@ -229,7 +229,7 @@ void setup() {
   }
 Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,wifiChannel,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
-  setWifiChannel(5);
+  setWifiChannel(WIFI_CHANNEL);
 
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());
