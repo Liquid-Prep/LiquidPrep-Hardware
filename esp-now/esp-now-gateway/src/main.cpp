@@ -24,12 +24,15 @@ unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 
 // TODO: allow input certain values in webtools and writ to SPIFFS at the time of flashing
-int espInterval=60000; //espInterval for reading data
+int espInterval=90000; //espInterval for reading data
 String wsserver = "192.168.86.24";  //ip address of Express server
 int wsport= 3000;
 char path[] = "/";   //identifier of this device
 boolean webSocketConnected=0;
 String data= "";
+uint8_t leaderMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+String leaderMac = "7821848D8840";
+
 
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
@@ -88,7 +91,7 @@ String saveJson() {
 }
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.printf("Last Packet Send Status: %u, %u, %s\t", receiverAddress, mac_addr, receiverMac);
+  Serial.printf("Last Packet Send Status: %u, %u, %s\t", leaderMacAddress, mac_addr, receiverMac);
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   Serial.println("");
 }
@@ -169,6 +172,7 @@ void calibrate() {
       setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval, from);
       payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }
   }
   httpResponse(success, "Calibrate",  "Invalid request params, correct params: value=air_value&host_addr=... OR value=water_value&host_addr=...");
@@ -196,6 +200,7 @@ void queryESP() {
       payload.msgId = generateMessageHash(payload);
       Serial.printf("why why why, %d, %d, %d, %d\n", payload.from, payload.task, payload.type, payload.msgId);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }  
   }
   httpResponse(success, "Query ESP",  "Invalid request params, correct params: host_addr=...");
@@ -222,6 +227,7 @@ void pingESP() {
       payload.msgId = generateMessageHash(payload);
       Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }
   }
   if(success) {
@@ -276,7 +282,8 @@ void updateESP32() {
       }
       payload.msgId = generateMessageHash(payload);
       Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
-      esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));      
+      esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));      
+      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }
   }
   if(success) {
@@ -390,7 +397,8 @@ void updateWifiChannel() {
   }
   Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
   payload.msgId = generateMessageHash(payload);
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
   Server.send(200, "text/plain", "Update wifi channel!");
 }
 
@@ -517,7 +525,9 @@ void setup() {
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
-  //addPeer(gatewayReceiverAddress);  
+  stringToInt(leaderMac, leaderMacAddress);
+  addPeer(leaderMacAddress);  
+  Serial.printf("Adding leader: %u\n", leaderMacAddress);
   //addPeer(broadcastAddress);  
 }
 

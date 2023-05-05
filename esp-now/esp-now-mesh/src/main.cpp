@@ -11,7 +11,7 @@ int airValue = 3440;   // 3442;  // enter your max air value here
 int waterValue = 1803; // 1779;  // enter your water value here
 int sensorPin = 32;
 int soilMoistureValue = 0;
-int wifiChannel = 0;
+int wifiChannel = WIFI_CHANNEL;
 float soilmoisturepercent = 0;
 const char* fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
@@ -229,7 +229,8 @@ void setup() {
   }
 Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,wifiChannel,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
-  setWifiChannel(WIFI_CHANNEL);
+  //setWifiChannel(wifiChannel);
+  setWifiChannel(11);
 
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());
