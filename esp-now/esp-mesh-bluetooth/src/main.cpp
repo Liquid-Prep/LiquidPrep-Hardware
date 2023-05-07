@@ -22,6 +22,7 @@ const char *fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
 int espInterval = 80000; // interval for reading data
 uint8_t gatewayMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+String gatewayMac = "7821848D8840";
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
@@ -215,12 +216,39 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   }
 }
 
+void enableBluetooth() {
+  char bleName[80] = "";
+  sprintf(bleName, "ESP32-%s", DEVICE_NAME);
+  Serial.printf("Starting BLE work!  %s\n", bleName);
+
+  BLEDevice::init("ESP32-LiquidPrep");
+  BLEServer *pServer = BLEDevice::createServer();
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+  // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
+  
+  pService->start();
+  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
+}
+
 void setup()
 {
   int waitCount = 0;
   delay(1000);
   // Init Serial Monitor
   Serial.begin(115200);
+  enableBluetooth();
 
   while (!SPIFFS.begin(true) && waitCount++ < 3)
   {
@@ -261,7 +289,7 @@ void setup()
   }
   Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,wifiChannel,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
-  setWifiChannel(wifiChannel);
+  setWifiChannel(11);
 
   Serial.println("Initializing...");
   Serial.println("My MAC address is: " + WiFi.macAddress());
@@ -312,30 +340,6 @@ void setup()
   addPeer(gatewayMacAddress);
   Serial.printf("Adding gateway: %u\n", gatewayMacAddress);
 
-  Serial.println("Starting BLE work!");
-
-  char bleName[80] = "";
-  sprintf(bleName, "LiquidPrep-%s", DEVICE_NAME);
-  BLEDevice::init(bleName);
-  BLEServer *pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  pCharacteristic = pService->createCharacteristic(
-                                         CHARACTERISTIC_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-
-  // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
-  
-  pService->start();
-  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-  pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it in your phone!");
 }
 
 void loop()

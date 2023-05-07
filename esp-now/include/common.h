@@ -62,7 +62,6 @@ uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please up
 uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-String gatewayMac = "7821848C89FC";
 String gatewayReceiverMac = "78:21:84:7C:23:14";                // mac address of gateway receiver  
 String hostMac = "";                           // mac address of this device
 String receiverMac = "7821848C89FC";           // mac address of receiver
