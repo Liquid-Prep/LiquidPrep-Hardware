@@ -8,12 +8,12 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-int DEVICE_ID = 1;             // set device id, need to store in SPIFFS
-String DEVICE_NAME = "ZONE_1"; // set device name
+int DEVICE_ID = 5;             // set device id, need to store in SPIFFS
+String DEVICE_NAME = "ZONE_5"; // set device name
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
-int waterValue = 1803; // 1779;  // enter your water value here
+int waterValue = 2803; // 1779;  // enter your water value here
 int sensorPin = 32;
 int soilMoistureValue = 0;
 int wifiChannel = 0;
@@ -29,6 +29,38 @@ String gatewayMac = "7821848D8840";
 
 BLECharacteristic *pCharacteristic;
 
+class BLECallbacks: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic)
+  {
+    std::string value = pCharacteristic->getValue();
+    DynamicJsonDocument pdoc(512);
+    char payload[80];
+    int j = 0;
+
+    if (value.length() > 0)
+    {
+      Serial.printf("*********: %d\n", value.length());
+      Serial.print("New value: ");
+      for (int i = 0; i < value.length(); i++) {
+        if(i%2 == 0) {
+          payload[j++] = value[i];
+          Serial.print(value[i]);          
+        }
+      }
+      payload[j] = '\0';
+      Serial.println();
+      Serial.println("*********");
+
+      Serial.printf("%s\n", payload);
+      deserializeJson(pdoc, payload);
+      Serial.printf("%s, %s", pdoc["type"].as<String>(), pdoc["value"].as<String>());
+
+      if(pdoc["type"].as<String>() == "CHANNEL") {
+        Serial.printf("%s\n", pdoc["value"].as<String>());
+      }
+    }
+  }
+};
 void calculate()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
@@ -218,10 +250,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
 void enableBluetooth() {
   char bleName[80] = "";
-  sprintf(bleName, "ESP32-%s", DEVICE_NAME);
+  sprintf(bleName, "ESP32-LiquidPrep-%s", DEVICE_NAME);
   Serial.printf("Starting BLE work!  %s\n", bleName);
 
-  BLEDevice::init("ESP32-LiquidPrep");
+  BLEDevice::init(bleName);
   BLEServer *pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
@@ -230,7 +262,7 @@ void enableBluetooth() {
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
   // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
-  
+  pCharacteristic->setCallbacks(new BLECallbacks());
   pService->start();
   // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
@@ -248,7 +280,6 @@ void setup()
   delay(1000);
   // Init Serial Monitor
   Serial.begin(115200);
-  enableBluetooth();
 
   while (!SPIFFS.begin(true) && waitCount++ < 3)
   {
@@ -289,6 +320,7 @@ void setup()
   }
   Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,wifiChannel,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
+  enableBluetooth();
   setWifiChannel(11);
 
   Serial.println("Initializing...");
@@ -336,9 +368,9 @@ void setup()
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
-  stringToInt(gatewayMac, gatewayMacAddress);
-  addPeer(gatewayMacAddress);
-  Serial.printf("Adding gateway: %u\n", gatewayMacAddress);
+  //stringToInt(gatewayMac, gatewayMacAddress);
+  //addPeer(gatewayMacAddress);
+  //Serial.printf("Adding gateway: %u\n", gatewayMacAddress);
 
 }
 
