@@ -525,9 +525,9 @@ void setup() {
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
-  stringToInt(leaderMac, leaderMacAddress);
-  addPeer(leaderMacAddress);  
-  Serial.printf("Adding leader: %u\n", leaderMacAddress);
+  //stringToInt(leaderMac, leaderMacAddress);
+  //addPeer(leaderMacAddress);  
+  //Serial.printf("Adding leader: %u\n", leaderMacAddress);
   //addPeer(broadcastAddress);  
 }
 
