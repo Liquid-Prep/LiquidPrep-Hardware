@@ -20,8 +20,8 @@ enum Task {
   UPDATE_DEVICE_NAME,
   UPDATE_DEVICE_ID,
   UPDATE_ESP_INTERVAL,
-  UPDATE_SENDER_ADDR,
-  REGISTER_DEVICE,
+  GET_MOISTURE,
+  MOISTURE_RESULT,
   RELATE_MESSAGE,
   RELATE_MESSAGE_UPSTREAM,
   CONNECT_WITH_ME,
@@ -41,12 +41,12 @@ enum Task {
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
-  else if(str == "UPDATE_SENDER_ADDR") return UPDATE_SENDER_ADDR;
+  else if(str == "GET_MOISTURE") return GET_MOISTURE;
   else if(str == "UPDATE_WIFI_CHANNEL") return UPDATE_WIFI_CHANNEL;
   else if(str == "UPDATE_DEVICE_NAME") return UPDATE_DEVICE_NAME;
   else if(str == "UPDATE_DEVICE_ID") return UPDATE_DEVICE_ID;
   else if(str == "UPDATE_ESP_INTERVAL") return UPDATE_ESP_INTERVAL;
-  else if(str == "REGISTER_DEVICE") return REGISTER_DEVICE;
+  else if(str == "MOISTURE_RESULT") return MOISTURE_RESULT;
   else if(str == "RELATE_MESSAGE") return RELATE_MESSAGE;
   else if(str == "RELATE_MESSAGE_UPSTREAM") return RELATE_MESSAGE_UPSTREAM;
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
@@ -191,7 +191,7 @@ void espNowSend(String receiver, struct_message payload) {
   esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
 }
 uint32_t generateMessageHash(const struct_message &msg) {
-  String combined = String(msg.senderAddress) + String(msg.type) + String(msg.from) + String(millis());
+  String combined = String(msg.senderAddress) + String(msg.task) + String(msg.type) + String(msg.from) + String(millis());
   uint32_t hash = 0;
   for (unsigned int i = 0; i < combined.length(); i++) {
     hash = hash * 31 + combined[i];

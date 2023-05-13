@@ -82,7 +82,7 @@ void broadcastWifiResult(int channel) {
   struct_message payload = struct_message();
   char msg[80];
   sprintf(msg, "Updated wifi: from %d to %d", wifiChannel, channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, 0);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
 
   Serial.printf("\n%s\n", payload.msg);
   payload.msgId = generateMessageHash(payload);
@@ -99,6 +99,34 @@ void processWifiUpdates(int channel) {
   saveJson();
 }
 
+void calibrateSensor(int mode) {
+  struct_message payload = struct_message();
+  String msg = "";
+  char str[80];
+  if(mode == CALIBRATE_AIR) {
+    sprintf(str, "%d", airValue);
+    std::string s(str);
+    msg += "Air: Old=" + String(s.c_str());
+    calibrateAir(airValue, sensorPin);
+    sprintf(str, "%d", airValue);
+    std::string s2(str);
+    msg = msg + ", New=" + String(s2.c_str());
+  } else {
+    sprintf(str, "%d", waterValue);
+    std::string s(str);
+    msg += "Water: Old=" + String(s.c_str());
+    calibrateWater(waterValue, sensorPin);
+    sprintf(str, "%d", waterValue);
+    std::string s2(str);
+    msg += ", New=" + String(s2.c_str());
+  }
+  saveJson();
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+
+  payload.msgId = generateMessageHash(payload);
+  Serial.printf("\n%s, %d\n\n", payload.msg, payload.msgId);
+  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+}
 class BLECallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic)
   {
@@ -128,6 +156,9 @@ class BLECallbacks: public BLECharacteristicCallbacks {
       if(pdoc["type"].as<String>() == "CHANNEL") {
         int channel =  atoi(pdoc["value"].as<String>().c_str());
         processWifiUpdates(channel);
+      } else if(pdoc["type"].as<String>() == "CALIBRATE") {
+        int mode = pdoc["value"].as<String>() == "water" ? CALIBRATE_WATER : CALIBRATE_AIR;
+        calibrateSensor(mode);
       }
     }
   }
@@ -172,7 +203,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
-  Serial.print("Bytes received: ");
+  Serial.print("Bytes received: ------\n");
   Serial.printf("%d, moisture: %s from %s, %s, %d, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.from, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------\n");
@@ -184,6 +215,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
     if(payload.hostAddress == hostMac) {
       Serial.println("processing...\n");
       int from = payload.from == WEB_REQUEST ? WEB_REQUEST_RESULT : NO_TASK;
+      char msg[80];
       switch(payload.task) {
         case PING:
           setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, from);
@@ -192,7 +224,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         break;
         case QUERY:
-          char msg[80];
           sprintf(msg, "%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "");
           Serial.printf("msg: %s -> %d", msg, from);
           setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from);
@@ -201,21 +232,13 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         break;
         case CALIBRATE_AIR:
         case CALIBRATE_WATER:
-          if(payload.task == CALIBRATE_AIR) {
-            calibrateAir(airValue, sensorPin);
-          } else {
-            calibrateWater(waterValue, sensorPin);
-          }
-          saveJson();
-          payload = struct_message(); 
-          payload.type = BROADCAST;
-          payload.task = CALIBRATE_RESULT;
-          payload.from = from;
-          payload.senderAddress = hostMac;
-          payload.hostAddress = receiverMac;
-          payload.name = DEVICE_NAME;
-          payload.id = DEVICE_ID;
-          sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, hostMac.c_str(), "");
+          calibrateSensor(payload.task);
+        break;
+        case GET_MOISTURE:
+          calculate();
+          sprintf(msg, "%d,%d,%d,%d,%s,%s,%s", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel);
+          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", MOISTURE_RESULT, BROADCAST, msg, espInterval, from);
+          payload.msgId = generateMessageHash(payload);
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         break;
         case UPDATE_DEVICE_NAME:
@@ -247,9 +270,10 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           } else {
             Serial.println("Same wifi channel, nothing to do.");
           }
+        } else {
+          Serial.printf("relate broadcast %d from %s, %s, %d, %d, %d, %s\n\n", payload.msgId, payload.name, payload.senderAddress, payload.task, payload.type, payload.from, payload.msg);
+          esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         } 
-        Serial.printf("relate broadcast %d from %s, %s\n", payload.msgId, payload.name, payload.senderAddress, payload.task);
-        esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       } else {
           Serial.println("Else nothing to do.\n");
       }

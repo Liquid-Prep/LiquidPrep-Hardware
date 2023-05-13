@@ -120,8 +120,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       Serial.println();
       response = "{\"mac\": \"" + payload.senderAddress + "\", \"id\": " + String(payload.id) + from + ", \"name\": \"" + payload.name + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
     }
-    else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT) {
-      Serial.printf("Query: %d, %s, %d, %d, %s\n", payload.msgId, payload.name, payload.type, payload.task, from);
+    else if(payload.task == QUERY_RESULT || payload.task == CALIBRATE_RESULT || payload.task == MOISTURE_RESULT) {
+      Serial.printf("Query: %d, %s, %d, %d, %s, %s\n", payload.msgId, payload.name, payload.type, payload.task, from, payload.msg);
       Serial.println();
       response = "{\"mac\": \"" + payload.senderAddress + "\", \"interval\": " + String(payload.espInterval) + ", \"id\": " + String(payload.id) + from + ", \"name\": \"" + payload.name + "\", \"msg\": \"" + payload.msg + "\", \"type\": " + String(payload.type) + ", \"task\": " + String(payload.task) + "}";
     } else {
@@ -177,6 +177,34 @@ void calibrate() {
   }
   httpResponse(success, "Calibrate",  "Invalid request params, correct params: value=air_value&host_addr=... OR value=water_value&host_addr=...");
 }
+void getMoisture() {
+  boolean success = false;
+  if(Server.args() == 1 && Server.argName(0) == "host_addr" || Server.args() == 2 && Server.argName(0) == "host_addr" && Server.argName(1) == "web_request") {
+    success = true;
+    String targetHostAddr = removeFromString(Server.arg(0), (char *)":");
+    struct_message payload = struct_message();
+    int from = Server.arg(1) == "true" && Server.argName(1) == "web_request" ? WEB_REQUEST : NO_TASK;
+    Serial.printf("from: %d, %s, %s\n", payload.from, Server.argName(1), Server.arg(1));
+    if(targetHostAddr == hostMac) {
+      String fromStr = "";
+      if(from == WEB_REQUEST) {
+        fromStr = ", \"from\": " + String(WEB_REQUEST_RESULT);
+      }
+      Serial.printf("why why why, %s\n", fromStr);
+      calculate();
+      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s,%s", airValue, waterValue, sensorPin, WiFi.channel(), hostMac.c_str(), "", moistureLevel);
+      String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(MOISTURE_RESULT) + "}";
+      sendData(response);
+    } else {
+      Serial.printf("from: %d\n", from);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", GET_MOISTURE, BROADCAST, "", espInterval, from);
+      payload.msgId = generateMessageHash(payload);
+      Serial.printf("why why why, %d, %d, %d, %d\n", payload.from, payload.task, payload.type, payload.msgId);
+      esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+    }
+  }    
+  httpResponse(success, "Query ESP",  "Invalid request params, correct params: host_addr=...");
+}
 void queryESP() {
   boolean success = false;
   if(Server.args() == 1 && Server.argName(0) == "host_addr" || Server.args() == 2 && Server.argName(0) == "host_addr" && Server.argName(1) == "web_request") {
@@ -200,7 +228,6 @@ void queryESP() {
       payload.msgId = generateMessageHash(payload);
       Serial.printf("why why why, %d, %d, %d, %d\n", payload.from, payload.task, payload.type, payload.msgId);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }  
   }
   httpResponse(success, "Query ESP",  "Invalid request params, correct params: host_addr=...");
@@ -227,7 +254,6 @@ void pingESP() {
       payload.msgId = generateMessageHash(payload);
       Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-      esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
     }
   }
   if(success) {
@@ -470,7 +496,7 @@ void setup() {
   Portal.on("/", onHome);
 
   Server.enableCORS();
-  Server.on("/moisture", moistureJson);
+  Server.on("/moisture", getMoisture);
   Server.on("/moisture.json", moistureJson);
   Server.on("/update", updateESP32);
   Server.on("/reboot_gateway", restartESP);
