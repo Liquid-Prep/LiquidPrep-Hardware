@@ -33,7 +33,6 @@ String data= "";
 uint8_t leaderMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String leaderMac = "7821848D8840";
 
-
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
 
@@ -349,7 +348,8 @@ void wsconnect() {
   if(!webSocketConnected) {
     // Connect to the websocket server
     Serial.printf("%s, %d, %s\n", wsserver, wsport, path);
-    webSocketClient.begin(wsserver, wsport, path);
+    //webSocketClient.begin(wsserver, wsport, path);
+    webSocketClient.beginSSL(wsserver.c_str(), wsport, path);
     // WebSocket event handler
     webSocketClient.onEvent(webSocketEvent);
     // if connection failed retry every 5s
