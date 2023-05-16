@@ -55,18 +55,7 @@ String saveJson() {
   }
   return msg;
 }
-void updateWifiChannel(int channel) {
-  struct_message payload = struct_message();
-  char msg[80];
-  sprintf(msg, "%d", channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0);
-
-  Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
-  payload.msgId = generateMessageHash(payload);
-  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-}
-
-void setWifiChannel(int32_t channel = 5) {
+void setWifiChannel(int32_t channel = 11) {
   WiFi.mode(WIFI_STA);
   // TODO: get channel programmatically
   //int32_t channel = getWiFiChannel(WIFI_SSID);
@@ -77,6 +66,23 @@ void setWifiChannel(int32_t channel = 5) {
 //WiFi.printDiag(Serial); // Uncomment to verify channel change after  
   WiFi.disconnect();        // we do not want to connect to a WiFi network
 } 
+
+void updateWifiChannel(int channel) {
+  struct_message payload = struct_message();
+  char msg[80];
+  sprintf(msg, "%d", channel);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0);
+
+  Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
+  payload.msgId = generateMessageHash(payload);
+  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+
+  // Broadcast to newly joined or to any esp still listening on default wifi channel 11
+  if(wifiChannel != WIFI_CHANNEL) {
+    setWifiChannel(WIFI_CHANNEL);
+    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+}
 
 void broadcastWifiResult(int channel) {
   struct_message payload = struct_message();
@@ -127,6 +133,25 @@ void calibrateSensor(int mode) {
   Serial.printf("\n%s, %d\n\n", payload.msg, payload.msgId);
   esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
 }
+void calibrateByPercentage(int percent) {
+  struct_message payload = struct_message();
+  String msg = "";
+  char str[80];
+  sprintf(str, "%d", waterValue);
+  std::string s(str);
+  msg += "Water: Old=" + String(s.c_str());
+
+  int val = analogRead(sensorPin); // connect sensor to Analog pin
+  int valueMinDiff = abs(val - airValue);
+  int maxMinDiff = valueMinDiff * 100 / percent;
+  waterValue = abs(airValue - maxMinDiff); 
+  sprintf(str, "%d", waterValue);
+  std::string s2(str);
+  msg += ", New=" + String(s2.c_str());
+
+  saveJson();
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+}
 class BLECallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic)
   {
@@ -163,7 +188,22 @@ class BLECallbacks: public BLECharacteristicCallbacks {
     }
   }
 };
-void calculate()
+void calculate() {
+  int val = analogRead(sensorPin); // connect sensor to Analog pin
+  char str[8];
+  if(val >= airValue) {
+    soilmoisturepercent = 0;
+  } else if(val <= waterValue) {
+    soilmoisturepercent = 100.00;
+  } else {
+    int diff = airValue - waterValue;
+    soilmoisturepercent = ((float)(airValue - val) / diff) * 100;
+  }
+  Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
+  dtostrf(soilmoisturepercent, 1, 2, str);
+  moistureLevel = str;
+}
+void calculate2()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
 
