@@ -7,7 +7,8 @@
 #define FIRMWARE_VERSION  "0.2.3"
 #define MY_ROLE           ESP_NOW_ROLE_CONTROLLER         // set the role of this device: CONTROLLER, SLAVE, COMBO
 #define RECEIVER_ROLE     ESP_NOW_ROLE_SLAVE              // set the role of the receiver
-#define WIFI_CHANNEL      1
+#define WIFI_CHANNEL      11
+#define WIFI_SSID         "Your AP"
 
 #define VAL(str) #str
 #define TOSTRING(str) VAL(str)
@@ -19,29 +20,33 @@ enum Task {
   UPDATE_DEVICE_NAME,
   UPDATE_DEVICE_ID,
   UPDATE_ESP_INTERVAL,
-  UPDATE_SENDER_ADDR,
-  REGISTER_DEVICE,
+  GET_MOISTURE,
+  MOISTURE_RESULT,
   RELATE_MESSAGE,
   RELATE_MESSAGE_UPSTREAM,
   CONNECT_WITH_ME,
   MESSAGE_ONLY,
   PING,
+  PING_BACK,
   QUERY,
   QUERY_RESULT,
   CONNECT_WITH_YOU,
   CALIBRATE_AIR,
   CALIBRATE_WATER,
   CALIBRATE_RESULT,
-  BROADCAST
+  BROADCAST,
+  WEB_REQUEST,
+  WEB_REQUEST_RESULT,
+  UPDATE_WIFI_RESULT
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
-  else if(str == "UPDATE_SENDER_ADDR") return UPDATE_SENDER_ADDR;
+  else if(str == "GET_MOISTURE") return GET_MOISTURE;
   else if(str == "UPDATE_WIFI_CHANNEL") return UPDATE_WIFI_CHANNEL;
   else if(str == "UPDATE_DEVICE_NAME") return UPDATE_DEVICE_NAME;
   else if(str == "UPDATE_DEVICE_ID") return UPDATE_DEVICE_ID;
   else if(str == "UPDATE_ESP_INTERVAL") return UPDATE_ESP_INTERVAL;
-  else if(str == "REGISTER_DEVICE") return REGISTER_DEVICE;
+  else if(str == "MOISTURE_RESULT") return MOISTURE_RESULT;
   else if(str == "RELATE_MESSAGE") return RELATE_MESSAGE;
   else if(str == "RELATE_MESSAGE_UPSTREAM") return RELATE_MESSAGE_UPSTREAM;
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
@@ -52,13 +57,12 @@ Task str2enum(const std::string& str) {
 
 uint8_t tmpAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t hostAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-uint8_t gatewayReceiverAddress[] = {0x40,0x91,0x51,0x9F,0x30,0xAC};   // please update this with the MAC address of the receiver
+uint8_t gatewayReceiverAddress[] = {0x78,0x21,0x84,0x7C,0x23,0x14};   // please update this with the MAC address of the receiver
 uint8_t receiverAddress[] = {0x78, 0x21, 0x84, 0x8C, 0x89, 0xFC};   // please update this with the MAC address of the receiver
 uint8_t senderAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 uint8_t broadcastAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-String gatewayMac = "7821848C89FC";
-String gatewayReceiverMac = "40:91:51:9F:30:AC";                // mac address of gateway receiver  
+String gatewayReceiverMac = "78:21:84:7C:23:14";                // mac address of gateway receiver  
 String hostMac = "";                           // mac address of this device
 String receiverMac = "7821848C89FC";           // mac address of receiver
 String senderMac = "";                         // mac address of sender
@@ -80,6 +84,7 @@ typedef struct struct_message {
   char msg[80];
   int task;
   int type;
+  int from;
   uint32_t  msgId;
 } struct_message;
 
@@ -167,7 +172,7 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
@@ -177,6 +182,8 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.receiverAddress = receiver;
   payload.task = task;
   payload.type = type;
+  payload.espInterval = interval;
+  payload.from = from;
   sprintf(payload.msg, "%s", msg.c_str());
 }
 void espNowSend(String receiver, struct_message payload) {
@@ -184,7 +191,7 @@ void espNowSend(String receiver, struct_message payload) {
   esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
 }
 uint32_t generateMessageHash(const struct_message &msg) {
-  String combined = String(msg.senderAddress) + String(msg.type) + String(millis());
+  String combined = String(msg.senderAddress) + String(msg.task) + String(msg.type) + String(msg.from) + String(millis());
   uint32_t hash = 0;
   for (unsigned int i = 0; i < combined.length(); i++) {
     hash = hash * 31 + combined[i];

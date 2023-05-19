@@ -1,0 +1,31 @@
+{
+  "name": "esp-tool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "esptool": "bin/esptool.js",
+    "esptool:help": "npm run esptool --task=help",
+    "esptool:list:port": "npm run esptool --task=getSerialPorts",
+    "esptool:erase": "npm run esptool --task=erase",
+    "esptool:flash": "npm run esptool --task=flash",
+    "esptool:ping": "npm run esptool --task=ping",
+    "esptool:query": "npm run esptool --task=query",
+    "esptool:calibrate:air": "npm run esptool --task=calibrateAir",
+    "esptool:calibrate:water": "npm run esptool --task=calibrateWater",
+    "esptool:update:interval": "npm run esptool --task=updateInterval",
+    "esptool:update:name": "npm run esptool --task=updateName",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Liquid-Prep/LiquidPrep-Hardware/esp-tool"
+  },
+  "author": "ljeff@us.ibm.com",
+  "license": "ISC",
+  "dependencies": {
+    "rxjs": "^7.8.0",
+    "serialport": "^10.5.0"
+  }
+}
