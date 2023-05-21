@@ -3,8 +3,12 @@
 #include <common.h>
 #include <esp_wifi.h>
 
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  80        /* Time ESP32 will go to sleep (in seconds) */
+
 int DEVICE_ID = 1;                   // set device id, need to store in SPIFFS
 String DEVICE_NAME = "ZONE_2";       // set device name
+
 
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
@@ -285,6 +289,8 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensor
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
+
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
 }
 
 void loop() {
@@ -304,5 +310,10 @@ void loop() {
   payload.msgId = generateMessageHash(payload);
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
 
-  delay(espInterval);
+  // After sending data, go to light sleep
+  Serial.println("Entering Light Sleep Mode");
+  esp_light_sleep_start();
+  // The program will continue from here when the ESP32 wakes up
+
+
 }
