@@ -84,6 +84,45 @@ void updateWifiChannel(int channel) {
   }
 }
 
+void calibrateWaterValue(int reading) {
+  // Check reading and update waterValue if needed
+  if(reading >= 0 && reading <= 4095) { // valid ADC reading
+    waterValue = reading;
+
+    // Now update the value in the configuration file
+    doc["waterValue"] = waterValue;
+    saveJson();
+
+    // Then broadcast this change to other devices using ESP-NOW
+    struct_message payload = struct_message();
+    char msg[80];
+    sprintf(msg, "%d", waterValue);
+    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WATER_CALIBRATION, BROADCAST, msg, espInterval, 0);
+    payload.msgId = generateMessageHash(payload);
+    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+}
+
+void calibrateAirValue(int reading) {
+  // Check reading and update airValue if needed
+  if(reading >= 0 && reading <= 4095) { // valid ADC reading
+    airValue = reading;
+
+    // Now update the value in the configuration file
+    doc["airValue"] = airValue;
+    saveJson();
+
+    // Then broadcast this change to other devices using ESP-NOW
+    struct_message payload = struct_message();
+    char msg[80];
+    sprintf(msg, "%d", airValue);
+    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_AIR_CALIBRATION, BROADCAST, msg, espInterval, 0);
+    payload.msgId = generateMessageHash(payload);
+    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+}
+
+
 void broadcastWifiResult(int channel) {
   struct_message payload = struct_message();
   char msg[80];
