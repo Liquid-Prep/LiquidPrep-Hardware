@@ -86,7 +86,7 @@ void updateWifiChannel(int channel) {
 
 void calibrateWaterValue(int reading) {
   // Check reading and update waterValue if needed
-  if(reading >= 0 && reading <= 4095) { // valid ADC reading
+  if(reading >= 0 && reading <= 4095) { // valid reading
     waterValue = reading;
 
     // Now update the value in the configuration file
@@ -97,7 +97,7 @@ void calibrateWaterValue(int reading) {
     struct_message payload = struct_message();
     char msg[80];
     sprintf(msg, "%d", waterValue);
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WATER_CALIBRATION, BROADCAST, msg, espInterval, 0);
+    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_WATER, BROADCAST, msg, espInterval, 0);
     payload.msgId = generateMessageHash(payload);
     esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
   }
@@ -116,12 +116,11 @@ void calibrateAirValue(int reading) {
     struct_message payload = struct_message();
     char msg[80];
     sprintf(msg, "%d", airValue);
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_AIR_CALIBRATION, BROADCAST, msg, espInterval, 0);
+    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_AIR, BROADCAST, msg, espInterval, 0);
     payload.msgId = generateMessageHash(payload);
     esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
   }
 }
-
 
 void broadcastWifiResult(int channel) {
   struct_message payload = struct_message();
@@ -310,8 +309,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         break;
         case CALIBRATE_AIR:
+          calibrateAirValue(atoi(payload.msg));
         case CALIBRATE_WATER:
-          calibrateSensor(payload.task);
+          calibrateWaterValue(atoi(payload.msg));
         break;
         case GET_MOISTURE:
           calculate();
