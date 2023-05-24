@@ -219,10 +219,16 @@ class BLECallbacks: public BLECharacteristicCallbacks {
       if(pdoc["type"].as<String>() == "CHANNEL") {
         int channel =  atoi(pdoc["value"].as<String>().c_str());
         processWifiUpdates(channel);
-      } else if(pdoc["type"].as<String>() == "CALIBRATE") {
-        int mode = pdoc["value"].as<String>() == "water" ? CALIBRATE_WATER : CALIBRATE_AIR;
-        calibrateSensor(mode);
-      }
+      } 
+      else if(pdoc["type"].as<String>() == "CALIBRATE") {
+        if(pdoc["value"].as<String>() == "water") {
+          int waterReading = atoi(pdoc["reading"].as<String>().c_str());
+          calibrateWaterValue(waterReading);
+        } 
+        else if (pdoc["value"].as<String>() == "air") {
+          int airReading = atoi(pdoc["reading"].as<String>().c_str());
+          calibrateAirValue(airReading);
+        }
     }
   }
 };
@@ -309,9 +315,8 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
         break;
         case CALIBRATE_AIR:
-          calibrateAirValue(atoi(payload.msg));
         case CALIBRATE_WATER:
-          calibrateWaterValue(atoi(payload.msg));
+          calibrateSensor(payload.task);
         break;
         case GET_MOISTURE:
           calculate();
