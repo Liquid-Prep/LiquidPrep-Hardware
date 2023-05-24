@@ -230,6 +230,7 @@ class BLECallbacks: public BLECharacteristicCallbacks {
           calibrateAirValue(airReading);
         }
     }
+    }
   }
 };
 void calculate() {
