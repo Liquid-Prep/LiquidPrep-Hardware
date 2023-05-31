@@ -233,6 +233,7 @@ class BLECallbacks: public BLECharacteristicCallbacks {
           calibrateAirValue(-1);
         }
     }
+    }
   }
   }
 };
