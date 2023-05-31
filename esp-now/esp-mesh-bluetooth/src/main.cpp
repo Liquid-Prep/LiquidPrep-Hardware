@@ -55,94 +55,6 @@ String saveJson() {
   }
   return msg;
 }
-void setWifiChannel(int32_t channel = 11) {
-  WiFi.mode(WIFI_STA);
-  // TODO: get channel programmatically
-  //int32_t channel = getWiFiChannel(WIFI_SSID);
-  WiFi.printDiag(Serial); // Uncomment to verify channel number before
-  esp_wifi_set_promiscuous(true);
-  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
-  esp_wifi_set_promiscuous(false);
-//WiFi.printDiag(Serial); // Uncomment to verify channel change after  
-  WiFi.disconnect();        // we do not want to connect to a WiFi network
-} 
-
-void updateWifiChannel(int channel) {
-  struct_message payload = struct_message();
-  char msg[80];
-  sprintf(msg, "%d", channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0);
-
-  Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
-  payload.msgId = generateMessageHash(payload);
-  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-
-  // Broadcast to newly joined or to any esp still listening on default wifi channel 11
-  if(wifiChannel != WIFI_CHANNEL) {
-    setWifiChannel(WIFI_CHANNEL);
-    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-  }
-}
-
-void calibrateWaterValue(int reading) {
-  // Check reading and update waterValue if needed
-  if(reading >= 0 && reading <= 4095) { // valid reading
-    waterValue = reading;
-
-    // Now update the value in the configuration file
-    doc["waterValue"] = waterValue;
-    saveJson();
-
-    // Then broadcast this change to other devices using ESP-NOW
-    struct_message payload = struct_message();
-    char msg[80];
-    sprintf(msg, "%d", waterValue);
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_WATER, BROADCAST, msg, espInterval, 0);
-    payload.msgId = generateMessageHash(payload);
-    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-  }
-}
-
-void calibrateAirValue(int reading) {
-  // Check reading and update airValue if needed
-  if(reading >= 0 && reading <= 4095) { // valid ADC reading
-    airValue = reading;
-
-    // Now update the value in the configuration file
-    doc["airValue"] = airValue;
-    saveJson();
-
-    // Then broadcast this change to other devices using ESP-NOW
-    struct_message payload = struct_message();
-    char msg[80];
-    sprintf(msg, "%d", airValue);
-    setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_AIR, BROADCAST, msg, espInterval, 0);
-    payload.msgId = generateMessageHash(payload);
-    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-  }
-}
-
-void broadcastWifiResult(int channel) {
-  struct_message payload = struct_message();
-  char msg[80];
-  sprintf(msg, "Updated wifi: from %d to %d", wifiChannel, channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
-
-  Serial.printf("\n%s\n", payload.msg);
-  payload.msgId = generateMessageHash(payload);
-  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
-}
-
-void processWifiUpdates(int channel) {
-  Serial.printf("%d\n", channel);
-  updateWifiChannel(channel);
-  delay(300);
-  setWifiChannel(channel);
-  broadcastWifiResult(channel);
-  wifiChannel = channel;
-  saveJson();
-}
-
 void calibrateSensor(int mode) {
   struct_message payload = struct_message();
   String msg = "";
@@ -170,6 +82,97 @@ void calibrateSensor(int mode) {
   payload.msgId = generateMessageHash(payload);
   Serial.printf("\n%s, %d\n\n", payload.msg, payload.msgId);
   esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+}
+void setWifiChannel(int32_t channel = 11) {
+  WiFi.mode(WIFI_STA);
+  // TODO: get channel programmatically
+  //int32_t channel = getWiFiChannel(WIFI_SSID);
+  WiFi.printDiag(Serial); // Uncomment to verify channel number before
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+//WiFi.printDiag(Serial); // Uncomment to verify channel change after  
+  WiFi.disconnect();        // we do not want to connect to a WiFi network
+} 
+
+int percentToADC(int percent) {
+    return (percent * 4095) / 100;
+}
+int ADCToPercent(int adc) {
+    return (adc * 100) / 4095;
+}
+void updateWifiChannel(int channel) {
+  struct_message payload = struct_message();
+  char msg[80];
+  sprintf(msg, "%d", channel);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0);
+
+  Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
+  payload.msgId = generateMessageHash(payload);
+  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+
+  // Broadcast to newly joined or to any esp still listening on default wifi channel 11
+  if(wifiChannel != WIFI_CHANNEL) {
+    setWifiChannel(WIFI_CHANNEL);
+    esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+  }
+}
+
+void calibrateWaterValue(int percent) {
+  if(percent == -1)
+    calibrateSensor(CALIBRATE_WATER);
+  // Check reading and update waterValue if needed
+  if(percent >= 0 && percent <= 100) { // valid percentage
+    waterValue = percentToADC(percent);
+
+    // Now update the value in the configuration file
+    doc["waterValue"] = waterValue;
+    saveJson();
+
+    // Then broadcast this change to other devices using ESP-NOW
+    struct_message payload = struct_message();
+    char msg[80];
+    sprintf(msg, "%d", waterValue);
+  }
+}
+
+void calibrateAirValue(int percent) {
+    if(percent <= -1)
+      calibrateSensor(CALIBRATE_AIR);
+  // Check reading and update airValue if needed
+  if(percent >= 0 && percent <= 100) { // valid percentage
+    airValue = percentToADC(percent);
+
+    // Now update the value in the configuration file
+    doc["airValue"] = airValue;
+    saveJson();
+
+    // Then broadcast this change to other devices using ESP-NOW
+    struct_message payload = struct_message();
+    char msg[80];
+    sprintf(msg, "%d", airValue);
+  }
+}
+
+void broadcastWifiResult(int channel) {
+  struct_message payload = struct_message();
+  char msg[80];
+  sprintf(msg, "Updated wifi: from %d to %d", wifiChannel, channel);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+
+  Serial.printf("\n%s\n", payload.msg);
+  payload.msgId = generateMessageHash(payload);
+  esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
+}
+
+void processWifiUpdates(int channel) {
+  Serial.printf("%d\n", channel);
+  updateWifiChannel(channel);
+  delay(300);
+  setWifiChannel(channel);
+  broadcastWifiResult(channel);
+  wifiChannel = channel;
+  saveJson();
 }
 void calibrateByPercentage(int percent) {
   struct_message payload = struct_message();
@@ -227,9 +230,10 @@ class BLECallbacks: public BLECharacteristicCallbacks {
         } 
         else if (pdoc["value"].as<String>() == "air") {
           int airReading = atoi(pdoc["reading"].as<String>().c_str());
-          calibrateAirValue(airReading);
+          calibrateAirValue(-1);
         }
     }
+  }
   }
 };
 void calculate() {
@@ -511,4 +515,5 @@ void loop()
   pCharacteristic->setValue(moistureLevel.c_str());
 
   delay(espInterval);
+  
 }
