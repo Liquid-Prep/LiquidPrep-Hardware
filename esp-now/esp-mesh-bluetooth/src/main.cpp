@@ -193,6 +193,7 @@ void calibrateByPercentage(int percent) {
   saveJson();
   setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
 }
+
 class BLECallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic)
   {
@@ -235,8 +236,9 @@ class BLECallbacks: public BLECharacteristicCallbacks {
     }
     }
   }
-  }
+
 };
+
 void calculate() {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
   char str[8];
