@@ -32,25 +32,52 @@
         "value": "Pin"
       },
       {
-        "name": "pin",
+        "name": "sensorPin",
         "type": "ACInput"
       },
       {
         "name": "caption4",
         "type": "ACText",
-        "value": "Service uuid"
+        "value": "WebSocket Server"
       },
       {
-        "name": "serviceUuid",
+        "name": "wsserver",
         "type": "ACInput"
       },
       {
         "name": "caption5",
         "type": "ACText",
-        "value": "Characteristic uuid"
+        "value": "WebSocket Port"
       },
       {
-        "name": "characteristicUuid",
+        "name": "wsport",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption6",
+        "type": "ACText",
+        "value": "Receiver Mac Address"
+      },
+      {
+        "name": "receiverMac",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption7",
+        "type": "ACText",
+        "value": "Sender Mac Address"
+      },
+      {
+        "name": "senderMac",
+        "type": "ACInput"
+      },
+      {
+        "name": "caption8",
+        "type": "ACText",
+        "value": "Interval"
+      },
+      {
+        "name": "espInterval",
         "type": "ACInput"
       },
       {

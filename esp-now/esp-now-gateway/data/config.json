@@ -1,0 +1,15 @@
+{
+  "uuid": {
+    "SERVICE_UUID": "4fafc201-1fb5-459e-8fcc-c5c9c331914b",
+    "CHARACTERISTIC_UUID": "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+  },
+  "airValue": 3440,
+  "waterValue": 1803,
+  "sensorPin": 32,
+  "wsserver": "192.168.86.24",
+  "wsport": 3000,
+  "espInterval": 80000,
+  "wifiChannel": 0,
+  "receiverAddress": "",
+  "senderAddress": ""
+}
