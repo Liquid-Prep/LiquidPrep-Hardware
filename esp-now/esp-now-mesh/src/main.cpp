@@ -17,6 +17,9 @@ const char* fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
 int espInterval=80000; //interval for reading data
 
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  80        /* Time ESP32 will go to sleep (in seconds) */
+
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
 
@@ -285,6 +288,9 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensor
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
+
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+
 }
 
 void loop() {
@@ -304,5 +310,6 @@ void loop() {
   payload.msgId = generateMessageHash(payload);
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
 
-  delay(espInterval);
+  Serial.println("Entering Light Sleep Mode");
+  esp_light_sleep_start();
 }
