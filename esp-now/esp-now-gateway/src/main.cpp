@@ -218,7 +218,7 @@ void queryESP() {
         fromStr = ", \"from\": " + String(WEB_REQUEST_RESULT);
       }
       Serial.printf("why why why, %s\n", fromStr);
-      sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, WiFi.channel(), senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(QUERY_RESULT) + "}";
       sendData(response);
     } else {

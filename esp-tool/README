@@ -14,6 +14,12 @@ Tool to help communicate and configure with esp32 workers via esp-now gateway
 - npm run esptool:calibrate:air --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
 - npm run esptool:calibrate:water --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
 
+## Examples
+- npm run esptool:flash --port=/dev/tty.usbserial-0001 --project_path=/Users/jeff/sandbox/LiquidPrep-Hardware/esp-now/esp-now-gateway/.pio/build/esp-now-gateway
+
+- npm run esptool:flash --port=/dev/tty.usbserial-0001 --project_path=/Users/jeff/sandbox/LiquidPrep-Hardware/esp-now/esp-mesh-bluetooth/.pio/build/esp-mesh-bluetooth
+
+- npm run esptool:erase --port=/dev/tty.usbserial-0001 
+
 ## Mesh
 ![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/mesh.jpg "Mesh") 
-
