@@ -396,7 +396,7 @@ void setup()
   }
   Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,wifiChannel,receiverMac,senderMac);
   // Set device as a Wi-Fi Station
-  enableBluetooth();
+  //enableBluetooth();
   setWifiChannel(wifiChannel);
 
   Serial.println("Initializing...");
@@ -454,6 +454,7 @@ void setup()
 
 void loop()
 {
+  enableBluetooth();
   calculate();
   // Set values to send
   struct_message payload = struct_message();
@@ -471,6 +472,7 @@ void loop()
 
   pCharacteristic->setValue(moistureLevel.c_str());
 
+  sleep(30);
   Serial.println("Entering Light Sleep Mode");
   esp_light_sleep_start();
 }
