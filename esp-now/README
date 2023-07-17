@@ -3,7 +3,7 @@
 The following two topologies uses ESP-NOW communication protocol to relate sensor data to the edge gateway by bridging between multiple esp32.  According to documentation, ESP-NOW protocol has maximum range of 480 meters between esp32's.  
 
 ## Mesh
-![Mesh](https://github.com/Liquid-Prep/LiquidPrep-Hardware/blob/develop/esp-now/mesh.jpg?raw=true) 
+![Mesh](mesh.jpg?raw=true "Mesh") 
 
 ## To setup Mesh
 - Flash esp-now-gateway firmware onto the esp32 that is designated as the esp-now gateway from https://playground.github.io/liquid-prep-web-tools/ and follow the instructions 
@@ -19,19 +19,19 @@ The following two topologies uses ESP-NOW communication protocol to relate senso
       - WebSocket
       - ESP-NOW Gateway
 
-    ![Gateway Configuration](https://github.com/Liquid-Prep/LiquidPrep-Hardware/blob/develop/esp-now/gateway-info.png?raw=true) 
+    ![Gateway Configuration](gateway-info.png?raw=true "Gateway Configuration") 
 
 - Flash esp-mesh-bluetooth firmware from https://playground.github.io/liquid-prep-web-tools/ onto the esp32's, these esp32 sensors are workers that will broadcast the moisture readings to the esp-now gateway
 
 - Once the flashing is complete and the configuration is set for the sensors, go to https://open-horizon-services.github.io/service-liquid-prep/ in your Chrome browser to start the Liquid Prep App.
   - By default the worker sensors(esp-mesh-bluetooth) are set to communicate on channel 11, esp-mesh-bluetooth need to be on the same channel as the esp-now-gateway in order to establish communication.
   - Let's go to Liquid Prep App to query the esp-now-gateway as shown below to obtain the channel # it's using  
-  ![Query Sensor](https://github.com/Liquid-Prep/LiquidPrep-Hardware/blob/develop/esp-now/query-sensor.png?raw=true) 
+  ![Query Sensor](query-sensor.png?raw=true "Query Sensor") 
   - Now got to update the esp-mesh-bluetooth sensors via bluetooth in the Liquid Prep App open-horizon-services.github.io/service-liquid-prep/my-crops
     - Note: This step is bit hidden and is temporary but will be improved in our next release with the new UI design 
     - Get to the following screen to update the WiFi Channel for the esp-mesh-bluetooth sensors
     Note:  There is a time limit for entering the channel number, so do it fast :-)
-    ![Update WiFi Channel](https://github.com/Liquid-Prep/LiquidPrep-Hardware/blob/develop/esp-now/update-wifi-channel.png?raw=true) 
+    ![Update WiFi Channel](update-wifi-channel.png?raw=true "Update WiFi Channel") 
     - Once you have provide the channel number and click ok, you will be prompted with a modal with a list of available sensors.  Select the one you would like to update.  
     - The esp-now-gateway should be receiving moisture readings from these esp-now-bluetooth sensors
     - The esp-now-gateway will also be relating the data broadcasted by all the esp-now-bluetooth sensors to the Edge Gateway via WebSocket.  The Liquid Prep App that is being served by this Edge Gateway will be able to view all the sensors last reported moisture reading
