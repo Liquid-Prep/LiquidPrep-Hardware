@@ -35,3 +35,24 @@ The following two topologies uses ESP-NOW communication protocol to relate senso
     - Once you have provide the channel number and click ok, you will be prompted with a modal with a list of available sensors.  Select the one you would like to update.  
     - The esp-now-gateway should be receiving moisture readings from these esp-now-bluetooth sensors
     - The esp-now-gateway will also be relating the data broadcasted by all the esp-now-bluetooth sensors to the Edge Gateway via WebSocket.  The Liquid Prep App that is being served by this Edge Gateway will be able to view all the sensors last reported moisture reading
+
+# Setup Edge Gateway
+  - Option 1: Use Open Horizon to manage software lifecycle and placement of application workload/updates
+    - Install Open Horizon Agent on local device (any computing device that supports Docker runtime)
+    - Register Agent with liquid-prepe-express service
+
+
+  - Option 2: Run as a standalone application and manage everything yourself
+    - Docker pull playbox21/liquid-prep-express_amd64:1.0.9
+    - docker run -d -it --rm -p 3003:3000 playbox21/liquid-prep-express_arm64:1.0.9
+
+
+  - Option 3: For running the code locally and for development
+    - git clone https://github.com/open-horizon-services/service-liquid-prep.git
+    - checkout develop branch
+    - cd into liquid-prep/liquid-prep-app, run ```npm install``` then run ```npm run deploy```
+    - cd into liquid-prep/liquid-prep-express, run ```npm install``` then run ```PORT=3003 npm run watch:deploy```
+
+Note:  When accessing the liquid prep app via https://localhost:3003 or https://edge-gateway-ip:3003 you will get a Not Secure warning from the browser.  For now just proceed with the warning, we are looking into obtaining a SSL certificate.  When accessing https://edge-gateway-ip:3003 some features that require SSL may not function.
+
+
