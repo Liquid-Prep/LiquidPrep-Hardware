@@ -1,0 +1,19 @@
+
+# ESPTOOL
+Tool to help communicate and configure with esp32 workers via esp-now gateway  
+
+# Available commands to interact with esp32's
+- npm run esptool:help
+- npm run esptool:list:port
+- run esptool:flash --port=</dev/tty.usbserial-6> --project_path=/Users/jeff/sandbox/LiquidPrep-Hardware/esp-now/esp-now-mesh/.pio/build/esp-now-mesh
+- npm run esptool:erase --port=/dev/tty.usbserial-6
+- npm run esptool:ping --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
+- npm run esptool:update:name --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58 --device_name=FIELD1
+- npm run esptool:update:interval --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58 --interval=38000
+- npm run esptool:query --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
+- npm run esptool:calibrate:air --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
+- npm run esptool:calibrate:water --gateway=http://xxx.xxx.xxx.xxx --mac_address=40:91:51:9F:1A:58
+
+## Mesh
+![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/mesh.jpg "Mesh") 
+
