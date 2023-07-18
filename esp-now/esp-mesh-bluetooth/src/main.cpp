@@ -31,6 +31,8 @@ String gatewayMac = "7821848D8840";
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 BLECharacteristic *pCharacteristic;
+BLEServer *pServer = nullptr;
+
 
 String saveJson() {
   String msg = "";
@@ -324,20 +326,21 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   }
 }
 
+
 void enableBluetooth() {
   char bleName[80] = "";
   sprintf(bleName, "ESP32-LiquidPrep-%s", DEVICE_NAME);
   Serial.printf("Starting BLE work!  %s\n", bleName);
 
   BLEDevice::init(bleName);
-  BLEServer *pServer = BLEDevice::createServer();
+  pServer = BLEDevice::createServer();
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
                                          CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ |
                                          BLECharacteristic::PROPERTY_WRITE
                                        );
-  // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
+  // pCharacteristic->setValue("92");  // use this to hard-code value sent via Bluetooth (for testing)
   pCharacteristic->setCallbacks(new BLECallbacks());
   pService->start();
   // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
@@ -347,14 +350,18 @@ void enableBluetooth() {
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
   BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
+  Serial.println("Characteristic defined! Now you can read it on your phone!");
 }
 
 void disableBluetooth() {
-  pServer->getAdvertising()->stop();
-  pServer->getServer()->disconnect();
-
-  Serial.println("Bluetooth disabled");
+  if (pServer) {
+    pServer->getAdvertising()->stop();
+    pServer->getServer()->disconnect();
+    pServer = nullptr; // Reset pServer to nullptr
+    Serial.println("Bluetooth disabled");
+  } else {
+    Serial.println("Bluetooth is not enabled");
+  }
 }
 
 void setup()
