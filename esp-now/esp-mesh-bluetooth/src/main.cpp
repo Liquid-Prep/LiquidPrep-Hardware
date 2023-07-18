@@ -350,6 +350,13 @@ void enableBluetooth() {
   Serial.println("Characteristic defined! Now you can read it in your phone!");                                       
 }
 
+void disableBluetooth() {
+  pServer->getAdvertising()->stop();
+  pServer->getServer()->disconnect();
+
+  Serial.println("Bluetooth disabled");
+}
+
 void setup()
 {
   int waitCount = 0;
