@@ -301,6 +301,14 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           espInterval = payload.espInterval;
           saveJson();
         break;
+        case ENABLE_BLUETOOTH:
+          Serial.println("enable bluetooth");
+          enableBluetooth();
+        break;
+        case DISABLE_BLUETOOTH:
+          Serial.println("disable bluetooth");
+          disableBluetooth();
+        break;
         default:
           Serial.println("Nothing to do.\n");
         break;

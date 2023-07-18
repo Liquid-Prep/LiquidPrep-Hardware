@@ -32,6 +32,8 @@ enum Task {
   CALIBRATE_AIR,
   CALIBRATE_WATER,
   CALIBRATE_RESULT,
+  ENABLE_BLUETOOTH,
+  DISABLE_BLUETOOTH,
   BROADCAST
 };
 Task str2enum(const std::string& str) {
