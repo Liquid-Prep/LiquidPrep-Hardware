@@ -237,6 +237,58 @@ void moistureJson()
   Serial.printf("sensor reading: %s", moistureLevel);
 }
 
+uint16_t connId = 0;  // This should be globally declared if it needs to be accessed in other functions
+
+void enableBluetooth() {
+  char bleName[80] = "";
+  sprintf(bleName, "ESP32-LiquidPrep-%s", DEVICE_NAME);
+  Serial.printf("Starting BLE work!  %s\n", bleName);
+
+  BLEDevice::init(bleName);
+  pServer = BLEDevice::createServer();
+
+  // Keep track of connection ID when a device connects
+  // pServer->setCallbacks(new MyServerCallbacks()); // you may need to define the callback to get the connection ID
+
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE
+                                       );
+
+  pCharacteristic->setCallbacks(new BLECallbacks());
+  pService->start();
+
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
+  Serial.println("Characteristic defined! Now you can read it on your phone!");
+}
+
+
+void disableBluetooth() {
+  if (pServer) {
+    uint16_t connId = 0;  // Replace with actual connection ID
+
+    pServer->getAdvertising()->stop();
+    
+    pServer->disconnect(connId); // Now passing a connection ID
+
+    delete pServer;
+    pServer = nullptr; // Reset pServer to nullptr
+
+    Serial.println("Bluetooth disabled");
+  } else {
+    Serial.println("Bluetooth is not enabled");
+  }
+}
+
+
+
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
@@ -244,6 +296,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   Serial.println("");
 }
+
 
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
@@ -331,44 +384,6 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
           Serial.println("Else nothing to do.\n");
       }
     }
-  }
-}
-
-
-void enableBluetooth() {
-  char bleName[80] = "";
-  sprintf(bleName, "ESP32-LiquidPrep-%s", DEVICE_NAME);
-  Serial.printf("Starting BLE work!  %s\n", bleName);
-
-  BLEDevice::init(bleName);
-  pServer = BLEDevice::createServer();
-  BLEService *pService = pServer->createService(SERVICE_UUID);
-  pCharacteristic = pService->createCharacteristic(
-                                         CHARACTERISTIC_UUID,
-                                         BLECharacteristic::PROPERTY_READ |
-                                         BLECharacteristic::PROPERTY_WRITE
-                                       );
-  // pCharacteristic->setValue("92");  // use this to hard-code value sent via Bluetooth (for testing)
-  pCharacteristic->setCallbacks(new BLECallbacks());
-  pService->start();
-  // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
-  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-  pAdvertising->setMinPreferred(0x12);
-  BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it on your phone!");
-}
-
-void disableBluetooth() {
-  if (pServer) {
-    pServer->getAdvertising()->stop();
-    pServer->getServer()->disconnect();
-    pServer = nullptr; // Reset pServer to nullptr
-    Serial.println("Bluetooth disabled");
-  } else {
-    Serial.println("Bluetooth is not enabled");
   }
 }
 
