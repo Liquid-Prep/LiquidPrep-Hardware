@@ -11,9 +11,6 @@
 int DEVICE_ID = 5;             // set device id, need to store in SPIFFS
 String DEVICE_NAME = "Z5"; // set device name
 
-#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  80        /* Time ESP32 will go to sleep (in seconds) */
-
 String moistureLevel = "";
 int airValue = 3440;   // 3442;  // enter your max air value here
 int waterValue = 2803; // 1779;  // enter your water value here
@@ -485,8 +482,6 @@ void setup()
   //addPeer(gatewayMacAddress);
   //Serial.printf("Adding gateway: %u\n", gatewayMacAddress);
 
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-
 }
 
 void loop()
@@ -507,7 +502,5 @@ void loop()
   //esp_now_send(gatewayMacAddress, (uint8_t *)&payload, sizeof(payload));
 
   pCharacteristic->setValue(moistureLevel.c_str());
-
-  Serial.println("Entering Light Sleep Mode");
-  esp_light_sleep_start();
+  Delay(espInterval);
 }
