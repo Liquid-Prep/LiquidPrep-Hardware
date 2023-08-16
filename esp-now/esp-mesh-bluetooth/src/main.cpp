@@ -502,5 +502,5 @@ void loop()
   //esp_now_send(gatewayMacAddress, (uint8_t *)&payload, sizeof(payload));
 
   pCharacteristic->setValue(moistureLevel.c_str());
-  Delay(espInterval);
+  delay(espInterval);
 }
