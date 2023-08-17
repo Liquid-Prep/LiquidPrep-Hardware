@@ -88,6 +88,7 @@ typedef struct struct_message {
   int type;
   int from;
   uint32_t  msgId;
+  int bluetooth;
 } struct_message;
 
 // Common utility functions

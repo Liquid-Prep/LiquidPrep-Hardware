@@ -369,6 +369,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       Serial.println("processing...\n");
       int from = payload.from == WEB_REQUEST ? WEB_REQUEST_RESULT : NO_TASK;
       char msg[80];
+      int bluetooth = pServer ? 1 : 0;
       switch (payload.task)
       {
       case PING:
@@ -378,7 +379,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
         break;
       case QUERY:
-        sprintf(msg, "%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "");
+        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", "?", bluetooth);
         Serial.printf("msg: %s -> %d", msg, from);
         setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from);
         payload.msgId = generateMessageHash(payload);
@@ -390,7 +391,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         break;
       case GET_MOISTURE:
         calculate();
-        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel);
+        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel, bluetooth);
         setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", MOISTURE_RESULT, BROADCAST, msg, espInterval, from);
         payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
