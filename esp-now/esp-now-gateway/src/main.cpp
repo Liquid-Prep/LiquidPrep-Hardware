@@ -25,6 +25,7 @@ unsigned long currentMillis = 0;
 
 // TODO: allow input certain values in webtools and writ to SPIFFS at the time of flashing
 int espInterval=90000; //espInterval for reading data
+int capacitance;
 String wsserver = "192.168.86.24";  //ip address of Express server
 int wsport= 3000;
 char path[] = "/";   //identifier of this device
@@ -35,7 +36,7 @@ String leaderMac = "7821848D8840";
 
 void calculate() {
   int val = analogRead(sensorPin);  // connect sensor to Analog pin
-
+  capacitance = val;
   // soilmoisturepercent = map(soilMoistureValue, airValue, waterValue, 0, 100);
   int valueMinDiff = abs(val - airValue);
   int maxMinDiff = abs(airValue - waterValue);
@@ -98,8 +99,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
-  Serial.print("Bytes received: ");
-  Serial.printf("%d, moisture: %d from %s, %s, %d, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.from, payload.msg);
+  Serial.printf("Bytes received at %s: ------\n", DEVICE_NAME);
+  Serial.printf("%d, moisture: %s, %d from %s, %d, %d, %d, %s\n", len, payload.moisture, payload.capacitance, payload.name, payload.task, payload.type, payload.from, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------\n");
   String response = "";
@@ -168,7 +169,7 @@ void calibrate() {
       sendData(response);
     } else {
       int task = Server.arg(0) == "air_value" ? CALIBRATE_AIR : CALIBRATE_WATER;
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval, from);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, senderMac, receiverMac, task, BROADCAST, "", espInterval, from, capacitance);
       payload.msgId = generateMessageHash(payload);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
       esp_now_send(leaderMacAddress, (uint8_t *) &payload, sizeof(payload));
@@ -196,7 +197,7 @@ void getMoisture() {
       sendData(response);
     } else {
       Serial.printf("from: %d\n", from);
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", GET_MOISTURE, BROADCAST, "", espInterval, from);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", GET_MOISTURE, BROADCAST, "", espInterval, from, capacitance);
       payload.msgId = generateMessageHash(payload);
       Serial.printf("why why why, %d, %d, %d, %d\n", payload.from, payload.task, payload.type, payload.msgId);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
@@ -223,7 +224,7 @@ void queryESP() {
       sendData(response);
     } else {
       Serial.printf("from: %d\n", from);
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "", espInterval, from);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", QUERY, BROADCAST, "", espInterval, from, capacitance);
       payload.msgId = generateMessageHash(payload);
       Serial.printf("why why why, %d, %d, %d, %d\n", payload.from, payload.task, payload.type, payload.msgId);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));
@@ -245,11 +246,11 @@ void pingESP() {
       }
       sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(PING_BACK) + "}";
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, WEB_REQUEST_RESULT);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, WEB_REQUEST_RESULT, capacitance);
       sendData(response);
     } else {
       Serial.printf("from: %d\n", from);
-      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME, espInterval, from);
+      setPayload(payload, DEVICE_ID, DEVICE_NAME, targetHostAddr, hostMac, "", PING, BROADCAST, DEVICE_NAME, espInterval, from, capacitance);
       payload.msgId = generateMessageHash(payload);
       Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id,payload.name,payload.hostAddress,payload.senderAddress,payload.task,payload.msg);
       esp_now_send(broadcastAddress, (uint8_t *) &payload, sizeof(payload));

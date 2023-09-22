@@ -89,6 +89,7 @@ typedef struct struct_message {
   int from;
   uint32_t  msgId;
   int bluetooth;
+  int capacitance;
 } struct_message;
 
 // Common utility functions
@@ -175,7 +176,7 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from, int capacitance) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
@@ -187,6 +188,7 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.type = type;
   payload.espInterval = interval;
   payload.from = from;
+  payload.capacitance = capacitance;
   sprintf(payload.msg, "%s", msg.c_str());
 }
 void espNowSend(String receiver, struct_message payload) {
