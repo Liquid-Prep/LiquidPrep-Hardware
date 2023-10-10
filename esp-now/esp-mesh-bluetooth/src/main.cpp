@@ -284,6 +284,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         case UPDATE_DEVICE_NAME:
           Serial.printf("update device name: %s\n\n", payload.name);
           DEVICE_NAME = payload.name;
+           esp_ble_gap_set_device_name(DEVICE_NAME.c_str());       
+           BLEDevice::getAdvertising()->stop();
+           BLEDevice::getAdvertising()->start();
           saveJson();
         break;
         case UPDATE_DEVICE_ID:
