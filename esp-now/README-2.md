@@ -1,4 +1,3 @@
-
 # ESP-NOW
 The following two topologies uses ESP-NOW communication protocol to relate sensor data to the edge gateway by bridging between multiple esp32.  According to documentation, ESP-NOW protocol has maximum range of 480 meters between esp32's.  
 
@@ -8,13 +7,6 @@ The following two topologies uses ESP-NOW communication protocol to relate senso
 ## One-To-One
 ![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/one-to-one.jpg "One To One") 
 
-## Mesh
-![](https://github.com/Liquid-Prep/LiquidPrep-Hardware/raw/esp-now-websocket/esp-now/mesh.jpg "Mesh") 
-
-## To setup
-- Flash esp-now-websocket firmware onto the esp gateway
-  - Join esp32ap wifi to configuire it to join your local wifi network with a static ip
-- Flash esp-now-twoway firmware onto the esp worker
 
 ## Configure esp gateway
 - Configure gateway in your browser with the following url
@@ -56,6 +48,4 @@ The following two topologies uses ESP-NOW communication protocol to relate senso
 - http://{esp-now-gateway-ip}/query?host_addr=78:21:84:8C:58:00
 - http://{esp-now-gateway-ip}/calibrate?value=air_value&host_addr=78:21:84:8C:9D:34
 - http://{esp-now-gateway-ip}/calibrate?value=water_value&host_addr=78:21:84:8C:9D:34
-
-
 
