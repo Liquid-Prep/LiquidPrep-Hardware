@@ -13,7 +13,7 @@ There are 2 options of soil moisture sensor devices supported;
 
 1. **[Arduino UNO](https://www.arduino.cc/)**:
    Please go through the [Arduino UNO setup documentation](./Arduino%20UNO/User-Manual.pdf) for stepwise instructions on how to setup the Arduino based sensor device.
-2. **[ESP32](http://esp32.net/)**:
+2. **[ESP32](http://esp32.net/)**: [Stepwise instructions for ESP32 IoT setup](https://github.com/Liquid-Prep/LiquidPrep-Hardware#Stepwise-instructions-for-ESP32-IoT-setup)
 
 # For End Users
 ## Flash firmware directly from [Liquid Prep Web Tools](https://playground.github.io/liquid-prep-web-tools/)
@@ -49,9 +49,60 @@ After plugging usb cable and the ESP32 is powered on, you will see an esp32ap as
 - To calibrate the sensor, go to http://yoursensorip/save_config
 - To get moisture level reading go to http://yoursensorip/moisture.json
 
+# Stepwise instructions for ESP32 IoT setup
 
+- Requirements for setup:
+  - Computer 
+  - ESP32
+  - Three way adapter 
+  - Thin rail mounting brackets
+  - Weather sealed enclosure (moderately sealed) - [A waterproof junction box like this would work](https://www.desertcart.in/products/53076593) 
+  - Micro USB Cable
+  - Hockey Tape
+  - Soil moisture sensor
+  - Tape Measure
+  - Connector wires
+  - Velcro
+  - Drilling machine
+  - Zipties
+  - thin rail 
+  - hot glue
+- Connect the ESP32 to your computer using the microUSB cable.
+- Extend length of the connector wires to make sure they are long enough to connect from the sensor to the GPIO pins on the ESP32.
+- Connect wires to GND (Ground), V5 (5 Volts), P4 (Port #4).
+- Download and install [Ardunio IDE](arduino.cc/en/Guide) for your OS, to flash firmware to ESP32.
+- Obtain a copy of the necessary firmware by copying the code from [ESP32_BLE_server.ino](https://github.com/nnethaji/LiquidPrep-Hardware/blob/main/ESP32/ESP32_BLE_server.ino) file.
+- Paste the copied code into the Ardunio editor.
+- From the Ardunio editor's menu bar select Tools -> Board: "Node32s" -> ESP32 Arduino -> Node32s.
+- Set Upload speed to 115200.
+- From the same Ardunio editor menu select Tools -> Serial Monitor. This can also be enabled with the shortcut Shift + Command + M. This is used for sensor calibration.
+- Flash the firmware by clicking on the Upload button. If the compiliation is successful, the software will begin writing to the ESP32.
+- Note: Some versions of the ESP32 may require the user to hold down the reset button on the ESP32 when it attempts to connect. This will put the ESP32 in Flash mode.
+- Once this is done, the serial monitor will display measurements from the sensor on a new window.
+- From the measurements titled sensor reading, find the min and max value.
+- Set the mix and max variables in the code you copied to the IDE to these values. Note that you need to assign the min value from the reading to the max variable in the code and the max value from the reading to the min variable in the code. 
+- Click on the right arrow button (next to the tick button) in the IDE window again, this will flash the firmware for the second time.
+- Open the liquid prep webapp and connect ESP32 via the adapter, select the image with the crop and click on the blue measurement icon.
+- This will prompt you to connect to the sensor. In the step 3, select connect with bluetooth.
+- Select ESP32 liquid prep, click on pair button. This will connect it to the sensor.
+- This will return a value indicating the current moisture level of whatever medium the ESP32 is submerged in or inserted into.
+- Now proceed to assemble the moisture sensor
+- Remove labels and stick to the sides of the ESP32 port
+- Stick velcro to the base of the ESP32
+- Now stick two other pieces of velcro to both sides of an 1 inch stryofoam piece of the same length as the sensor
+- Stick the base of the ESP32 on top of the velcro that is on one side of the stryofoam. Cut the stryofoam to make sure that the stryofoam can essentially fit within the body of the ESP32. That is the pins of the ESP32 should stick out and not poke into the stryofoam.
+- Take another piece of velcro and stick it onto the weather sealed enclosure.
+- Stick the stryofoam's other side onto this (the side without the ESP32).
+- Wrap cardboard around the thin rail and secure it with hockey tape.
+- Use screwdriver to pierce holes into the enclosure so that the connecting wire can pass through it.
+- Mark the centre points on both sides (the points would be between adjacent screwholes) and drill holes through the lid of the enclosure.
+- Mount mounting bracket onto the thin rail, screw the lid onto the rail with the bracket.
+- Place the rest of the enclosure (which has the ESP32 inside) and close it.
+- Using hot glue, stick the moisture sensor to one edge of the thin rail
+- This edge should be inserted into the soil to check the moisture level.
+  
 # References
-   Please see the [ESP32 setup video](https://youtu.be/EU28Z_lu67w) for stepwise instructions on how to setup the ESP32 based sensor device.
+   Please see the [ESP32 setup video](https://youtu.be/EU28Z_lu67w) for further detail on the ESP32 setup process.
 
 ## Troubleshooting
 
