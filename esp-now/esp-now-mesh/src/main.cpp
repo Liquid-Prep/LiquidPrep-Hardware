@@ -285,6 +285,7 @@ Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue,waterValue,sensor
   } else {
     Serial.printf("Adding peer: %u\n", peerInfo.peer_addr);
   }
+
 }
 
 void loop() {

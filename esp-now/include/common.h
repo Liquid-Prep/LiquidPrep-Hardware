@@ -37,7 +37,9 @@ enum Task {
   BROADCAST,
   WEB_REQUEST,
   WEB_REQUEST_RESULT,
-  UPDATE_WIFI_RESULT
+  UPDATE_WIFI_RESULT,
+  ENABLE_BLUETOOTH,
+  DISABLE_BLUETOOTH
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -86,6 +88,7 @@ typedef struct struct_message {
   int type;
   int from;
   uint32_t  msgId;
+  int bluetooth;
 } struct_message;
 
 // Common utility functions

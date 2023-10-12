@@ -304,6 +304,10 @@ void updateESP32() {
       } else if(task == "device_id") {
         payload.task = UPDATE_DEVICE_ID;
         payload.id = atoi(taskValue.c_str());
+      } else if(task == "enable_bluetooth") {
+        payload.task = ENABLE_BLUETOOTH;
+      } else if(task == "disable_bluetooth") {
+        payload.task = DISABLE_BLUETOOTH;
       }
       payload.msgId = generateMessageHash(payload);
       Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
