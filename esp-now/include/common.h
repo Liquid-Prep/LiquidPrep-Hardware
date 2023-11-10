@@ -37,7 +37,8 @@ enum Task {
   BROADCAST,
   WEB_REQUEST,
   WEB_REQUEST_RESULT,
-  UPDATE_WIFI_RESULT
+  UPDATE_WIFI_RESULT,
+  UPDATE_SENSOR_PIN,
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -52,6 +53,7 @@ Task str2enum(const std::string& str) {
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
   else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
   else if(str == "PING") return PING;
+  else if(str == "SENSOR_PIN") return UPDATE_SENSOR_PIN;
   else return NO_TASK;
 }
 

@@ -80,12 +80,33 @@ void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
         Serial.printf("Websocket Disconnected!\n");
         break;
       case WStype_CONNECTED:
-          Serial.printf("Websocket Connected\n");
+        Serial.printf("Websocket Connected\n");
         break;
       case WStype_TEXT:
         Serial.printf("get Text: %s\n", payload);
+
+        // Parse the incoming text message as JSON
+        DynamicJsonDocument doc(1024);
+        deserializeJson(doc, payload, length);
+        JsonObject obj = doc.as<JsonObject>();
+
+        if (obj.containsKey("updateSensorPin")) {
+          int newSensorPin = obj["updateSensorPin"].as<int>();
+          
+          if (newSensorPin >= 0 && newSensorPin <= 39) {
+            SensorPin = newSensorPin;
+            pinMode(SensorPin, INPUT); // Update the pin mode if necessary
+            saveJson(); 
+            Serial.printf("Sensor pin updated to: %d\n", SensorPin);
+            
+            String confirmation = "{\"sensorPinUpdated\": true}";
+            webSocketClient.sendTXT(confirmation);
+          } else {
+            Serial.println("Received invalid sensor pin number via WebSocket.");
+          }
+        }
         break;
-      }
+    }
   } catch(...) {
     Serial.println("Catch web socket errors");
   }
