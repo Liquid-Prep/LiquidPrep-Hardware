@@ -335,13 +335,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
           pinMode(sensorPin, INPUT); // Set the pin mode to input
           saveJson();                // Save the new configuration
 
-          // Prepare a response message
-          snprintf(msg, sizeof(msg), "Sensor pin updated to: %d", sensorPin);
-          setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_SENSOR_PIN, BROADCAST, msg, espInterval, from);
-          payload.msgId = generateMessageHash(payload);
-
           // Send the response message via ESP-NOW
-          esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
 
           Serial.printf("Sensor pin updated to: %d and acknowledgment sent.\n", sensorPin);
         }
