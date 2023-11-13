@@ -203,6 +203,14 @@ class BLECallbacks : public BLECharacteristicCallbacks
         int mode = pdoc["value"].as<String>() == "water" ? CALIBRATE_WATER : CALIBRATE_AIR;
         calibrateSensor(mode);
       }
+      else if (pdoc["type"].as<String>() == "PIN")
+      {
+        int newSensorPin = atoi(pdoc["value"].as<String>().c_str());
+        sensorPin = newSensorPin;  // Update the global sensorPin variable
+        pinMode(sensorPin, INPUT); // Set the pin mode to input
+        saveJson();
+         Serial.printf("Sensor pin updated to: %d and acknowledgment sent.\n", sensorPin);
+      }
     }
   }
 };
@@ -328,14 +336,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         break;
       case UPDATE_SENSOR_PIN:
       {
-        int newSensorPin = atoi(payload.msg); 
+        int newSensorPin = atoi(payload.msg);
         if (newSensorPin >= 0 && newSensorPin <= 39)
         {
           sensorPin = newSensorPin;  // Update the global sensorPin variable
           pinMode(sensorPin, INPUT); // Set the pin mode to input
-          saveJson();                // Save the new configuration
-
-          // Send the response message via ESP-NOW
+          saveJson();
 
           Serial.printf("Sensor pin updated to: %d and acknowledgment sent.\n", sensorPin);
         }
