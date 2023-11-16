@@ -309,6 +309,9 @@ void updateESP32() {
         payload.task = ENABLE_BLUETOOTH;
       } else if(task == "disable_bluetooth") {
         payload.task = DISABLE_BLUETOOTH;
+      } else if(task == "update_pin") {
+        payload.task = UPDATE_PIN;
+        payload.espInterval = atoi(taskValue.c_str());
       }
       payload.msgId = generateMessageHash(payload);
       Serial.printf("Broacast to: %s, %u\n", payload.hostAddress, gatewayReceiverAddress);
@@ -321,6 +324,10 @@ void updateESP32() {
   } else {
     Server.send(400, "text/plain", "Invalid request params");
   }  
+}
+
+void updatePin() {
+
 }
 
 String onHome(AutoConnectAux& aux, PageArgument& args) {

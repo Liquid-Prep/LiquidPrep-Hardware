@@ -428,6 +428,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         Serial.println("disable bluetooth");
         disableBluetooth();
         break;
+      case UPDATE_PIN:
+        Serial.printf("update sensor pin: %d\n\n", payload.espInterval);
+        sensorPin = payload.espInterval;
+        pinMode(sensorPin, INPUT);
+        saveJson();
+        break;
       default:
         Serial.println("Nothing to do.\n");
         break;

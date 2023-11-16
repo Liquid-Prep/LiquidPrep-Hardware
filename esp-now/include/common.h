@@ -39,7 +39,8 @@ enum Task {
   WEB_REQUEST_RESULT,
   UPDATE_WIFI_RESULT,
   ENABLE_BLUETOOTH,
-  DISABLE_BLUETOOTH
+  DISABLE_BLUETOOTH,
+  UPDATE_PIN
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -54,6 +55,7 @@ Task str2enum(const std::string& str) {
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
   else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
   else if(str == "PING") return PING;
+  else if(str == "UPDATE_PIN") return UPDATE_PIN;
   else return NO_TASK;
 }
 
