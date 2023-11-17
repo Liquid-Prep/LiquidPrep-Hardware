@@ -8,7 +8,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-int DEVICE_ID = 5;             // set device id, need to store in SPIFFS
+int DEVICE_ID = 5;         // set device id, need to store in SPIFFS
 String DEVICE_NAME = "Z5"; // set device name
 
 String moistureLevel = "";
@@ -25,7 +25,7 @@ int espInterval = 80000; // interval for reading data
 uint8_t gatewayMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String gatewayMac = "7821848D8840";
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 BLECharacteristic *pCharacteristic;
@@ -179,18 +179,16 @@ void setDeviceName(const char *deviceName)
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->stop();
-  
+
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
   oAdvertisementData.setName(bleName);
-  
+
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
   pAdvertising->start();
-  
+
   Serial.println("Name change complete. New name is now advertising.");
 }
-
-
 
 class BLECallbacks : public BLECharacteristicCallbacks
 {
@@ -234,6 +232,14 @@ class BLECallbacks : public BLECharacteristicCallbacks
       else if (pdoc["type"].as<String>() == "NAME")
       {
         setDeviceName(pdoc["value"].as<String>().c_str());
+      }
+      else if (pdoc["type"].as<String>() == "PIN")
+      {
+        int newSensorPin = atoi(pdoc["value"].as<String>().c_str());
+        sensorPin = newSensorPin;  // Update the global sensorPin variable
+        pinMode(sensorPin, INPUT); // Set the pin mode to input
+        saveJson();
+        Serial.printf("Sensor pin updated to: %d and acknowledgment sent.\n", sensorPin);
       }
     }
   }
@@ -421,6 +427,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       case DISABLE_BLUETOOTH:
         Serial.println("disable bluetooth");
         disableBluetooth();
+        break;
+      case UPDATE_PIN:
+        Serial.printf("update sensor pin: %d\n\n", payload.espInterval);
+        sensorPin = payload.espInterval;
+        pinMode(sensorPin, INPUT);
+        saveJson();
         break;
       default:
         Serial.println("Nothing to do.\n");
