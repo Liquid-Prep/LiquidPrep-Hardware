@@ -193,6 +193,21 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.capacitance = capacitance;
   sprintf(payload.msg, "%s", msg.c_str());
 }
+
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
+  // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
+  payload = struct_message();
+  payload.id = id;
+  payload.name = name;
+  payload.hostAddress = host;
+  payload.senderAddress = sender;
+  payload.receiverAddress = receiver;
+  payload.task = task;
+  payload.type = type;
+  payload.espInterval = interval;
+  payload.from = from;
+  sprintf(payload.msg, "%s", msg.c_str());
+}
 void espNowSend(String receiver, struct_message payload) {
   stringToInt(receiverMac, tmpAddress);
   esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));
