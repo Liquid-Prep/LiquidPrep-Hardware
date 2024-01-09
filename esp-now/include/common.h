@@ -39,7 +39,8 @@ enum Task {
   WEB_REQUEST_RESULT,
   UPDATE_WIFI_RESULT,
   ENABLE_BLUETOOTH,
-  DISABLE_BLUETOOTH
+  DISABLE_BLUETOOTH,
+  UPDATE_PIN
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -54,6 +55,7 @@ Task str2enum(const std::string& str) {
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
   else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
   else if(str == "PING") return PING;
+  else if(str == "UPDATE_PIN") return UPDATE_PIN;
   else return NO_TASK;
 }
 
@@ -89,6 +91,7 @@ typedef struct struct_message {
   int from;
   uint32_t  msgId;
   int bluetooth;
+  int capacitance;
 } struct_message;
 
 // Common utility functions
@@ -175,7 +178,7 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from, int capacitance) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
   payload = struct_message();
   payload.id = id;
@@ -187,6 +190,7 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.type = type;
   payload.espInterval = interval;
   payload.from = from;
+  payload.capacitance = capacitance;
   sprintf(payload.msg, "%s", msg.c_str());
 }
 void espNowSend(String receiver, struct_message payload) {

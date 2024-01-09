@@ -8,7 +8,7 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
-int DEVICE_ID = 5;             // set device id, need to store in SPIFFS
+int DEVICE_ID = 5;         // set device id, need to store in SPIFFS
 String DEVICE_NAME = "Z5"; // set device name
 
 String moistureLevel = "";
@@ -17,6 +17,7 @@ int waterValue = 2803; // 1779;  // enter your water value here
 int sensorPin = 32;
 int soilMoistureValue = 0;
 int wifiChannel = WIFI_CHANNEL;
+int capacitance = 0;
 float soilmoisturepercent = 0;
 const char *fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
@@ -24,7 +25,7 @@ int espInterval = 80000; // interval for reading data
 uint8_t gatewayMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String gatewayMac = "7821848D8840";
 
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 BLECharacteristic *pCharacteristic;
@@ -75,7 +76,7 @@ void updateWifiChannel(int channel)
   struct_message payload = struct_message();
   char msg[80];
   sprintf(msg, "%d", channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_CHANNEL, BROADCAST, msg, espInterval, 0, capacitance);
 
   Serial.printf("\nwifi: %d, %d, %s, %d, %d, %s, %s\n", espInterval, payload.from, payload.msg, payload.task, payload.type, payload.name, payload.senderAddress);
   payload.msgId = generateMessageHash(payload);
@@ -94,7 +95,7 @@ void broadcastWifiResult(int channel)
   struct_message payload = struct_message();
   char msg[80];
   sprintf(msg, "Updated wifi: from %d to %d", wifiChannel, channel);
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", UPDATE_WIFI_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT, capacitance);
 
   Serial.printf("\n%s\n", payload.msg);
   payload.msgId = generateMessageHash(payload);
@@ -138,7 +139,7 @@ void calibrateSensor(int mode)
     msg += ", New=" + String(s2.c_str());
   }
   saveJson();
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT, capacitance);
 
   payload.msgId = generateMessageHash(payload);
   Serial.printf("\n%s, %d\n\n", payload.msg, payload.msgId);
@@ -162,7 +163,7 @@ void calibrateByPercentage(int percent)
   msg += ", New=" + String(s2.c_str());
 
   saveJson();
-  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT);
+  setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", CALIBRATE_RESULT, BROADCAST, msg, espInterval, WEB_REQUEST_RESULT, capacitance);
 }
 
 void setDeviceName(const char *deviceName)
@@ -178,18 +179,16 @@ void setDeviceName(const char *deviceName)
 
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->stop();
-  
+
   BLEAdvertisementData oAdvertisementData = BLEAdvertisementData();
   oAdvertisementData.setName(bleName);
-  
+
   pAdvertising->setAdvertisementData(oAdvertisementData);
 
   pAdvertising->start();
-  
+
   Serial.println("Name change complete. New name is now advertising.");
 }
-
-
 
 class BLECallbacks : public BLECharacteristicCallbacks
 {
@@ -234,12 +233,21 @@ class BLECallbacks : public BLECharacteristicCallbacks
       {
         setDeviceName(pdoc["value"].as<String>().c_str());
       }
+      else if (pdoc["type"].as<String>() == "PIN")
+      {
+        int newSensorPin = atoi(pdoc["value"].as<String>().c_str());
+        sensorPin = newSensorPin;  // Update the global sensorPin variable
+        pinMode(sensorPin, INPUT); // Set the pin mode to input
+        saveJson();
+        Serial.printf("Sensor pin updated to: %d and acknowledgment sent.\n", sensorPin);
+      }
     }
   }
 };
 void calculate()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
+  capacitance = val;
   char str[8];
   if (val >= airValue)
   {
@@ -352,8 +360,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
 {
   struct_message payload = struct_message();
   memcpy(&payload, incomingData, sizeof(payload));
-  Serial.print("Bytes received: ------\n");
-  Serial.printf("%d, moisture: %s from %s, %s, %d, %d, %d, %s\n", len, payload.moisture, payload.name, payload.hostAddress, payload.task, payload.type, payload.from, payload.msg);
+
+  Serial.printf("Bytes received at %s: ------\n", DEVICE_NAME);
+  Serial.printf("%d, moisture: %s, %d from %s, %d, %d, %d, %s\n", len, payload.moisture, payload.capacitance, payload.name, payload.task, payload.type, payload.from, payload.msg);
   Serial.printf("=> msgId: %d\n", payload.msgId);
   Serial.println("------\n");
 
@@ -373,7 +382,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       switch (payload.task)
       {
       case PING:
-        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, from);
+        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, from, capacitance);
         Serial.printf("%d, %s, %s, %s, %d, %s\n", payload.id, payload.name, payload.hostAddress, payload.senderAddress, payload.task, payload.msg);
         payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
@@ -381,7 +390,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       case QUERY:
         sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", "?", bluetooth);
         Serial.printf("msg: %s -> %d", msg, from);
-        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from);
+        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from, capacitance);
         payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
         break;
@@ -392,7 +401,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       case GET_MOISTURE:
         calculate();
         sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel, bluetooth);
-        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", MOISTURE_RESULT, BROADCAST, msg, espInterval, from);
+        setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", MOISTURE_RESULT, BROADCAST, msg, espInterval, from, capacitance);
         payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
         break;
@@ -418,6 +427,12 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
       case DISABLE_BLUETOOTH:
         Serial.println("disable bluetooth");
         disableBluetooth();
+        break;
+      case UPDATE_PIN:
+        Serial.printf("update sensor pin: %d\n\n", payload.espInterval);
+        sensorPin = payload.espInterval;
+        pinMode(sensorPin, INPUT);
+        saveJson();
         break;
       default:
         Serial.println("Nothing to do.\n");
@@ -569,10 +584,11 @@ void loop()
   struct_message payload = struct_message();
   payload.id = DEVICE_ID;
   payload.name = DEVICE_NAME;
+  payload.capacitance = capacitance;
   payload.hostAddress = hostMac;
   payload.senderAddress = hostMac;
   payload.espInterval = espInterval;
-  Serial.printf("info: %d, %d, %s, %d, %s, %s, %s\n", wifiChannel, espInterval, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
+  Serial.printf("info: %d, %d, %d, %s, %d, %s, %s, %s\n", wifiChannel, espInterval, capacitance, moistureLevel, payload.id, payload.name, payload.senderAddress, payload.receiverAddress);
   payload.type = BROADCAST;
   payload.moisture = moistureLevel;
   payload.msgId = generateMessageHash(payload);
