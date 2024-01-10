@@ -42,15 +42,10 @@ void calculate()
 
 
   soilmoisturepercent = map(val, Value_dry, Value_wet, 0, 100);
+  soilmoisturepercent = constrain(soilmoisturepercent, 0, 100);
+
   char str[8];
-  if (soilmoisturepercent < 0)
-  {
-    soilmoisturepercent = 0;
-  }
-  else if (soilmoisturepercent > 100)
-  {
-    soilmoisturepercent = 100;
-  }
+
   Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;

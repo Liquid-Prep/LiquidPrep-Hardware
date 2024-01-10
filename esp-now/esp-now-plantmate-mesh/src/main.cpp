@@ -13,26 +13,18 @@ float soilmoisturepercent = 0;
 const char *fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
 int espInterval = 80000; // interval for reading data
-int sensorPin = A0; // Assuming A0 is where your sensor is connected
-int Value_dry; // This will hold the maximum value obtained during dry calibration
-int Value_wet; // This will hold the minimum value obtained during wet calibration
-
+int sensorPin = A0;      // Assuming A0 is where your sensor is connected
+int Value_dry;           // This will hold the maximum value obtained during dry calibration
+int Value_wet;           // This will hold the minimum value obtained during wet calibration
 
 void calculate()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
 
-
   soilmoisturepercent = map(val, Value_dry, Value_wet, 0, 100);
+  soilmoisturepercent = constrain(soilmoisturepercent, 0, 100);
+
   char str[8];
-  if (soilmoisturepercent < 0)
-  {
-    soilmoisturepercent = 0;
-  }
-  else if (soilmoisturepercent > 100)
-  {
-    soilmoisturepercent = 100;
-  }
   Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;
