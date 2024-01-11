@@ -13,7 +13,7 @@ float soilmoisturepercent = 0;
 const char *fwVersion = FIRMWARE_VERSION;
 DynamicJsonDocument doc(1024);
 int espInterval = 80000; // interval for reading data
-int sensorPin = A0;      // Assuming A0 is where your sensor is connected
+int sensorPin = 36;      // Assuming A0 is where your sensor is connected
 int Value_dry;           // This will hold the maximum value obtained during dry calibration
 int Value_wet;           // This will hold the minimum value obtained during wet calibration
 

@@ -20,7 +20,7 @@ WebSocketsClient webSocketClient;
 unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 
-int sensorPin = A0; // Assuming A0 is where your sensor is connected
+int sensorPin = 36; // Assuming A0 is where your sensor is connected
 int Value_dry; // This will hold the maximum value obtained during dry calibration
 int Value_wet; // This will hold the minimum value obtained during wet calibration
 
