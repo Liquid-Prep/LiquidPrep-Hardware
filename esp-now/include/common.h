@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <esp_now.h>
+#include <unordered_map>
 #include "FS.h"
 
 #define FIRMWARE_VERSION  "0.2.3"
@@ -149,6 +150,48 @@ void stringToInt(String mac, uint8_t *output) {
   for ( uint8_t i = 0; i < 6; i++ ) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
+}
+int getMostFrequent(int arr[], int n) {
+   std::unordered_map<int, int> elements;
+   for (int i = 0; i < n; i++) {
+      elements[arr[i]]++;
+   }
+   int maxCount = 0, res = -1;
+   for (auto i : elements) {
+      if (maxCount < i.second) {
+         res = i.first;
+         maxCount = i.second;
+      }
+   }
+   return res;
+}
+void calibrateAirFrequency(int &air, int pin) {
+  Serial.println("Leave Moisture sensor out of water for calibration");
+  int freqValue = 0;
+  int values[100] = {0};
+  for (int i = 0; i < 100; i++) {
+    int val = analogRead(pin);
+    Serial.println(val);
+    values[i] = val;
+    delay(300);
+  }
+  freqValue = getMostFrequent(values, 100);
+  Serial.println(freqValue);
+  air = freqValue;
+}
+void calibrateWaterFrequency(int &water, int pin) {
+  Serial.println("Put Moisture sensor in water for calibration");
+  int freqValue = 0;
+  int values[100] = {0};
+  for (int i = 0; i < 100; i++) {
+    int val = analogRead(pin);
+    Serial.println(val);
+    values[i] = val;
+    delay(300);
+  }
+  freqValue = getMostFrequent(values, 100);
+  Serial.println(freqValue);
+  water = freqValue;
 }
 void calibrateAir(int &air, int pin) {
   Serial.println("Leave Moisture sensor out of water for calibration");

@@ -124,7 +124,7 @@ void calibrateSensor(int mode)
     sprintf(str, "%d", Value_dry);
     std::string s(str);
     msg += "Air: Old=" + String(s.c_str());
-    calibrateAir(Value_dry, sensorPin);
+    calibrateAirFrequency(Value_dry, sensorPin);
     sprintf(str, "%d", Value_dry);
     std::string s2(str);
     msg = msg + ", New=" + String(s2.c_str());
@@ -134,7 +134,7 @@ void calibrateSensor(int mode)
     sprintf(str, "%d", Value_wet);
     std::string s(str);
     msg += "Water: Old=" + String(s.c_str());
-    calibrateWater(Value_wet, sensorPin);
+    calibrateWaterFrequency(Value_wet, sensorPin);
     sprintf(str, "%d", Value_wet);
     std::string s2(str);
     msg += ", New=" + String(s2.c_str());

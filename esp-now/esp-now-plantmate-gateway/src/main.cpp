@@ -155,9 +155,9 @@ void calibrate() {
     int from = Server.arg(2) == "true" && Server.argName(2) == "web_request" ? WEB_REQUEST : NO_TASK;
     if(targetHostAddr == hostMac) {
       if(Server.arg(0) == "air_value") {
-        calibrateAir(Value_dry, sensorPin);
+        calibrateAirFrequency(Value_dry, sensorPin);
       } else {
-        calibrateWater(Value_wet, sensorPin);
+        calibrateWaterFrequency(Value_wet, sensorPin);
       }
       saveJson();
       sprintf(payload.msg, "%d,%d,%d,%s,%s", Value_dry, Value_wet, sensorPin, senderMac.c_str(), receiverMac.c_str());
