@@ -11,9 +11,6 @@ WebServer Server;
 AutoConnect Portal(Server);
 AutoConnectConfig Config;
 String moistureLevel = "";
-int airValue = 3440; //3442;  // enter your max air value here
-int waterValue = 1803; //1779;  // enter your water value here
-int sensorPin = 32;
 int soilMoistureValue = 0;
 float soilmoisturepercent=0;
 const char* fwVersion = FIRMWARE_VERSION;
@@ -22,6 +19,11 @@ DynamicJsonDocument doc(1024);
 WebSocketsClient webSocketClient;
 unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
+
+int sensorPin = 36; // Assuming A0 is where your sensor is connected
+int Value_dry; // This will hold the maximum value obtained during dry calibration
+int Value_wet; // This will hold the minimum value obtained during wet calibration
+
 
 // TODO: allow input certain values in webtools and writ to SPIFFS at the time of flashing
 int espInterval=90000; //espInterval for reading data
@@ -34,25 +36,19 @@ String data= "";
 uint8_t leaderMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String leaderMac = "7821848D8840";
 
-void calculate() {
-  int val = analogRead(sensorPin);  // connect sensor to Analog pin
-  capacitance = val;
-  // soilmoisturepercent = map(soilMoistureValue, airValue, waterValue, 0, 100);
-  int valueMinDiff = abs(val - airValue);
-  int maxMinDiff = abs(airValue - waterValue);
-  soilmoisturepercent = ((float)valueMinDiff / maxMinDiff) * 100;
- 
+void calculate()
+{
+  int val = analogRead(sensorPin); // connect sensor to Analog pin
+
+
+  soilmoisturepercent = map(val, Value_dry, Value_wet, 0, 100);
+  soilmoisturepercent = constrain(soilmoisturepercent, 0, 100);
+
   char str[8];
-  if(soilmoisturepercent < 0) {
-    soilmoisturepercent = 0;
-  } else if(soilmoisturepercent > 100) {
-    soilmoisturepercent = 100;
-  }
-  Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent);  // print the value to serial port
+
+  Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;
-  // TODO:  only push value when there is a device connected
-  //pCharacteristic->setValue(str);  // push the value via bluetooth
 }
 
 void sendData(String data) {
@@ -67,11 +63,11 @@ String saveJson() {
   String msg = "";
   File configFile = SPIFFS.open("/config.json", "w+"); 
   if(configFile) {
-  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
+  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", Value_dry,Value_wet,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
     doc["deviceId"] = DEVICE_ID;
     doc["deviceName"] = DEVICE_NAME;
-    doc["airValue"] = airValue;
-    doc["waterValue"] = waterValue;
+    doc["airValue"] = Value_dry;
+    doc["waterValue"] = Value_wet;
     doc["sensorPin"] = sensorPin;
     doc["espInterval"] = espInterval;
     doc["receiverMac"] = gatewayReceiverMac;
@@ -159,12 +155,12 @@ void calibrate() {
     int from = Server.arg(2) == "true" && Server.argName(2) == "web_request" ? WEB_REQUEST : NO_TASK;
     if(targetHostAddr == hostMac) {
       if(Server.arg(0) == "air_value") {
-        calibrateAir(airValue, sensorPin);
+        calibrateAirFrequency(Value_dry, sensorPin);
       } else {
-        calibrateWater(waterValue, sensorPin);
+        calibrateWaterFrequency(Value_wet, sensorPin);
       }
       saveJson();
-      sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+      sprintf(payload.msg, "%d,%d,%d,%s,%s", Value_dry, Value_wet, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + ", \"from\": " + String(WEB_REQUEST_RESULT) + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(CALIBRATE_RESULT) + "}";
       sendData(response);
     } else {
@@ -192,7 +188,7 @@ void getMoisture() {
       }
       Serial.printf("why why why, %s\n", fromStr);
       calculate();
-      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s,%s", airValue, waterValue, sensorPin, WiFi.channel(), hostMac.c_str(), "", moistureLevel);
+      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s,%s", Value_dry, Value_wet, sensorPin, WiFi.channel(), hostMac.c_str(), "", moistureLevel);
       String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(MOISTURE_RESULT) + "}";
       sendData(response);
     } else {
@@ -219,7 +215,7 @@ void queryESP() {
         fromStr = ", \"from\": " + String(WEB_REQUEST_RESULT);
       }
       Serial.printf("why why why, %s\n", fromStr);
-      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, WiFi.channel(), senderMac.c_str(), receiverMac.c_str());
+      sprintf(payload.msg, "%d,%d,%d,%d,%s,%s", Value_dry, Value_wet, sensorPin, WiFi.channel(), senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"interval\": " + String(espInterval) + ", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(QUERY_RESULT) + "}";
       sendData(response);
     } else {
@@ -244,7 +240,7 @@ void pingESP() {
       if(from == WEB_REQUEST) {
         fromStr = ", \"from\": " + String(WEB_REQUEST_RESULT);
       }
-      sprintf(payload.msg, "%d,%d,%d,%s,%s", airValue, waterValue, sensorPin, senderMac.c_str(), receiverMac.c_str());
+      sprintf(payload.msg, "%d,%d,%d,%s,%s", Value_dry, Value_wet, sensorPin, senderMac.c_str(), receiverMac.c_str());
       String response = "{\"mac\": \"" + hostMac + "\", \"id\": " + String(DEVICE_ID) + fromStr + ", \"name\": \"" + DEVICE_NAME + "\", \"msg\": \"" + payload.msg + "\", \"task\": " + String(PING_BACK) + "}";
       setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", PING_BACK, BROADCAST, DEVICE_NAME, espInterval, WEB_REQUEST_RESULT, capacitance);
       sendData(response);
@@ -370,8 +366,8 @@ void wsconnect() {
 }
 
 String onSaveConfig(AutoConnectAux& aux, PageArgument& args) {
-  airValue = doc["airValue"] = args.arg("airValue").toInt();
-  waterValue = doc["waterValue"] = args.arg("waterValue").toInt();
+  Value_dry = doc["airValue"] = args.arg("airValue").toInt();
+  Value_wet = doc["waterValue"] = args.arg("waterValue").toInt();
   sensorPin = doc["sensorPin"] = args.arg("sensorPin").toInt();
   espInterval = doc["espInterval"] = args.arg("espInterval").toInt();
   doc["wsserver"] = args.arg("wsserver");
@@ -478,8 +474,8 @@ void setup() {
       saveJson();
     } else {
       JsonObject obj = doc.as<JsonObject>();
-      airValue = doc["airValue"];
-      waterValue = doc["waterValue"];
+      Value_dry = doc["airValue"];
+      Value_wet = doc["waterValue"];
       wsserver = obj["wsserver"].as<String>();
       wsport = doc["wsport"];
       sensorPin = doc["sensorPin"];
@@ -496,7 +492,7 @@ void setup() {
     // save default config
     saveJson();
   }
-  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", airValue,waterValue,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
+  Serial.printf("%d, %d, %d, %d, %s, %d, %s, %s\n", Value_dry,Value_wet,sensorPin,DEVICE_ID,DEVICE_NAME,espInterval,receiverMac,senderMac);
 
   Config.autoReconnect = true;
   Config.hostName = "liquid-prep";

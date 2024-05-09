@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <esp_now.h>
+#include <unordered_map>
 #include "FS.h"
 
 #define FIRMWARE_VERSION  "0.2.3"
@@ -37,7 +38,10 @@ enum Task {
   BROADCAST,
   WEB_REQUEST,
   WEB_REQUEST_RESULT,
-  UPDATE_WIFI_RESULT
+  UPDATE_WIFI_RESULT,
+  ENABLE_BLUETOOTH,
+  DISABLE_BLUETOOTH,
+  UPDATE_PIN
 };
 Task str2enum(const std::string& str) {
   if(str == "UPDATE_RECEIVER_ADDR") return UPDATE_RECEIVER_ADDR;
@@ -52,6 +56,7 @@ Task str2enum(const std::string& str) {
   else if(str == "CONNECT_WITH_ME") return CONNECT_WITH_ME;
   else if(str == "MESSAGE_ONLY") return MESSAGE_ONLY;
   else if(str == "PING") return PING;
+  else if(str == "UPDATE_PIN") return UPDATE_PIN;
   else return NO_TASK;
 }
 
@@ -86,6 +91,8 @@ typedef struct struct_message {
   int type;
   int from;
   uint32_t  msgId;
+  int bluetooth;
+  int capacitance;
 } struct_message;
 
 // Common utility functions
@@ -144,6 +151,48 @@ void stringToInt(String mac, uint8_t *output) {
     output[i] = ( addr >> ( ( 5 - i ) * 8 ) ) & 0xFF;
   }  
 }
+int getMostFrequent(int arr[], int n) {
+   std::unordered_map<int, int> elements;
+   for (int i = 0; i < n; i++) {
+      elements[arr[i]]++;
+   }
+   int maxCount = 0, res = -1;
+   for (auto i : elements) {
+      if (maxCount < i.second) {
+         res = i.first;
+         maxCount = i.second;
+      }
+   }
+   return res;
+}
+void calibrateAirFrequency(int &air, int pin) {
+  Serial.println("Leave Moisture sensor out of water for calibration");
+  int freqValue = 0;
+  int values[100] = {0};
+  for (int i = 0; i < 100; i++) {
+    int val = analogRead(pin);
+    Serial.println(val);
+    values[i] = val;
+    delay(300);
+  }
+  freqValue = getMostFrequent(values, 100);
+  Serial.println(freqValue);
+  air = freqValue;
+}
+void calibrateWaterFrequency(int &water, int pin) {
+  Serial.println("Put Moisture sensor in water for calibration");
+  int freqValue = 0;
+  int values[100] = {0};
+  for (int i = 0; i < 100; i++) {
+    int val = analogRead(pin);
+    Serial.println(val);
+    values[i] = val;
+    delay(300);
+  }
+  freqValue = getMostFrequent(values, 100);
+  Serial.println(freqValue);
+  water = freqValue;
+}
 void calibrateAir(int &air, int pin) {
   Serial.println("Leave Moisture sensor out of water for calibration");
   int maxValue = 0;
@@ -172,9 +221,12 @@ void calibrateWater(int &water, int pin) {
   Serial.println(minValue);
   water = minValue;
 }
-void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from) {
+void setPayload(struct_message &payload, int id, String name, String host, String sender, String receiver, int task, int type, String msg, int interval, int from, int capacitance = -1) {
   // Note:  Important for upstream message, set payload.senderAddress=hostMac, payload.hostAddress=receiverMac
+
   payload = struct_message();
+
+  // Set payload fields
   payload.id = id;
   payload.name = name;
   payload.hostAddress = host;
@@ -184,8 +236,16 @@ void setPayload(struct_message &payload, int id, String name, String host, Strin
   payload.type = type;
   payload.espInterval = interval;
   payload.from = from;
-  sprintf(payload.msg, "%s", msg.c_str());
+
+  // Set capacitance if provided (default -1 indicates not provided)
+  if (capacitance != -1) {
+    payload.capacitance = capacitance;
+  }
+
+  // Convert msg to a char array and assign to payload
+  snprintf(payload.msg, sizeof(payload.msg), "%s", msg.c_str());
 }
+
 void espNowSend(String receiver, struct_message payload) {
   stringToInt(receiverMac, tmpAddress);
   esp_now_send(tmpAddress, (uint8_t *) &payload, sizeof(payload));

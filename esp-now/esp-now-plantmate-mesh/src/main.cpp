@@ -12,9 +12,7 @@ int DEVICE_ID = 5;         // set device id, need to store in SPIFFS
 String DEVICE_NAME = "Z5"; // set device name
 
 String moistureLevel = "";
-int airValue = 3440;   // 3442;  // enter your max air value here
-int waterValue = 2803; // 1779;  // enter your water value here
-int sensorPin = 32;
+int sensorPin = 36;
 int soilMoistureValue = 0;
 int wifiChannel = WIFI_CHANNEL;
 int capacitance = 0;
@@ -24,6 +22,9 @@ DynamicJsonDocument doc(1024);
 int espInterval = 80000; // interval for reading data
 uint8_t gatewayMacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 String gatewayMac = "7821848D8840";
+
+int Value_dry;           // This will hold the maximum value obtained during dry calibration
+int Value_wet;           // This will hold the minimum value obtained during wet calibration
 
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
@@ -39,8 +40,8 @@ String saveJson()
   {
     doc["deviceId"] = DEVICE_ID;
     doc["deviceName"] = DEVICE_NAME;
-    doc["airValue"] = airValue;
-    doc["waterValue"] = waterValue;
+    doc["airValue"] = Value_dry;
+    doc["waterValue"] = Value_wet;
     doc["sensorPin"] = sensorPin;
     doc["espInterval"] = espInterval;
     doc["wifiChannel"] = wifiChannel;
@@ -120,21 +121,21 @@ void calibrateSensor(int mode)
   char str[80];
   if (mode == CALIBRATE_AIR)
   {
-    sprintf(str, "%d", airValue);
+    sprintf(str, "%d", Value_dry);
     std::string s(str);
     msg += "Air: Old=" + String(s.c_str());
-    calibrateAir(airValue, sensorPin);
-    sprintf(str, "%d", airValue);
+    calibrateAirFrequency(Value_dry, sensorPin);
+    sprintf(str, "%d", Value_dry);
     std::string s2(str);
     msg = msg + ", New=" + String(s2.c_str());
   }
   else
   {
-    sprintf(str, "%d", waterValue);
+    sprintf(str, "%d", Value_wet);
     std::string s(str);
     msg += "Water: Old=" + String(s.c_str());
-    calibrateWater(waterValue, sensorPin);
-    sprintf(str, "%d", waterValue);
+    calibrateWaterFrequency(Value_wet, sensorPin);
+    sprintf(str, "%d", Value_wet);
     std::string s2(str);
     msg += ", New=" + String(s2.c_str());
   }
@@ -150,15 +151,15 @@ void calibrateByPercentage(int percent)
   struct_message payload = struct_message();
   String msg = "";
   char str[80];
-  sprintf(str, "%d", waterValue);
+  sprintf(str, "%d", Value_wet);
   std::string s(str);
   msg += "Water: Old=" + String(s.c_str());
 
   int val = analogRead(sensorPin); // connect sensor to Analog pin
-  int valueMinDiff = abs(val - airValue);
+  int valueMinDiff = abs(val - Value_dry);
   int maxMinDiff = valueMinDiff * 100 / percent;
-  waterValue = abs(airValue - maxMinDiff);
-  sprintf(str, "%d", waterValue);
+  Value_wet = abs(Value_dry - maxMinDiff);
+  sprintf(str, "%d", Value_wet);
   std::string s2(str);
   msg += ", New=" + String(s2.c_str());
 
@@ -247,32 +248,25 @@ class BLECallbacks : public BLECharacteristicCallbacks
 void calculate()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
-  capacitance = val;
+
+
+  soilmoisturepercent = map(val, Value_dry, Value_wet, 0, 100);
+  soilmoisturepercent = constrain(soilmoisturepercent, 0, 100);
+
   char str[8];
-  if (val >= airValue)
-  {
-    soilmoisturepercent = 0;
-  }
-  else if (val <= waterValue)
-  {
-    soilmoisturepercent = 100.00;
-  }
-  else
-  {
-    int diff = airValue - waterValue;
-    soilmoisturepercent = ((float)(airValue - val) / diff) * 100;
-  }
+
   Serial.printf("sensor reading: %d - %f%\n", val, soilmoisturepercent); // print the value to serial port
   dtostrf(soilmoisturepercent, 1, 2, str);
   moistureLevel = str;
 }
+
 void calculate2()
 {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
 
   // soilmoisturepercent = map(soilMoistureValue, airValue, waterValue, 0, 100);
-  int valueMinDiff = abs(val - airValue);
-  int maxMinDiff = abs(airValue - waterValue);
+  int valueMinDiff = abs(val - Value_dry);
+  int maxMinDiff = abs(Value_dry - Value_wet);
   soilmoisturepercent = ((float)valueMinDiff / maxMinDiff) * 100;
 
   char str[8];
@@ -388,7 +382,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
         break;
       case QUERY:
-        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", "?", bluetooth);
+        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", Value_dry, Value_wet, sensorPin, wifiChannel, hostMac.c_str(), "", "?", bluetooth);
         Serial.printf("msg: %s -> %d", msg, from);
         setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", QUERY_RESULT, BROADCAST, msg, espInterval, from, capacitance);
         payload.msgId = generateMessageHash(payload);
@@ -400,7 +394,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len)
         break;
       case GET_MOISTURE:
         calculate();
-        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", airValue, waterValue, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel, bluetooth);
+        sprintf(msg, "%d,%d,%d,%d,%s,%s,%s,%d", Value_dry, Value_wet, sensorPin, wifiChannel, hostMac.c_str(), "", moistureLevel, bluetooth);
         setPayload(payload, DEVICE_ID, DEVICE_NAME, "", hostMac, "", MOISTURE_RESULT, BROADCAST, msg, espInterval, from, capacitance);
         payload.msgId = generateMessageHash(payload);
         esp_now_send(broadcastAddress, (uint8_t *)&payload, sizeof(payload));
@@ -500,8 +494,8 @@ void setup()
       }
       else
       {
-        airValue = doc["airValue"];
-        waterValue = doc["waterValue"];
+        Value_dry = doc["airValue"];
+        Value_wet = doc["waterValue"];
         sensorPin = doc["sensorPin"];
         DEVICE_ID = obj["deviceId"];
         DEVICE_NAME = doc["deviceName"].as<String>();
@@ -519,7 +513,7 @@ void setup()
   {
     saveJson();
   }
-  Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", airValue, waterValue, sensorPin, DEVICE_ID, DEVICE_NAME, espInterval, wifiChannel, receiverMac, senderMac);
+  Serial.printf("%d, %d, %d, %d, %s, %d, %d, %s, %s\n", Value_dry, Value_wet, sensorPin, DEVICE_ID, DEVICE_NAME, espInterval, wifiChannel, receiverMac, senderMac);
   // Set device as a Wi-Fi Station
   enableBluetooth();
   setWifiChannel(wifiChannel);
