@@ -188,6 +188,17 @@ class BLECallbacks: public BLECharacteristicCallbacks {
     }
   }
 };
+
+//Setup callbacks onConnect and onDisconnect
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *pServer) { 
+  };
+  void onDisconnect(BLEServer *pServer) {   
+    BLEDevice::getAdvertising()->stop();
+    BLEDevice::getAdvertising()->start();
+  }
+};
+
 void calculate() {
   int val = analogRead(sensorPin); // connect sensor to Analog pin
   char str[8];
@@ -284,6 +295,9 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
         case UPDATE_DEVICE_NAME:
           Serial.printf("update device name: %s\n\n", payload.name);
           DEVICE_NAME = payload.name;
+           esp_ble_gap_set_device_name(DEVICE_NAME.c_str());       
+           BLEDevice::getAdvertising()->stop();
+           BLEDevice::getAdvertising()->start();
           saveJson();
         break;
         case UPDATE_DEVICE_ID:
@@ -336,6 +350,7 @@ void enableBluetooth() {
                                        );
   // pCharacteristic->setValue("92");  // use this to hard-code value sent via bluetooth (for testing)
   pCharacteristic->setCallbacks(new BLECallbacks());
+  pServer->setCallbacks(new MyServerCallbacks());
   pService->start();
   // BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
